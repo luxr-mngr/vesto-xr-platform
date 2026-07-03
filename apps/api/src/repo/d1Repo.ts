@@ -120,6 +120,31 @@ export class D1Repo implements Repo {
     return results;
   }
 
+  async updateOrganization(id: string, patch: Partial<Pick<Organization, "name" | "slug">>) {
+    const fields: string[] = [];
+    const values: unknown[] = [];
+    if (patch.name !== undefined) {
+      fields.push("name = ?");
+      values.push(patch.name);
+    }
+    if (patch.slug !== undefined) {
+      fields.push("slug = ?");
+      values.push(patch.slug);
+    }
+    if (fields.length === 0) return;
+    values.push(id);
+    await this.db.prepare(`UPDATE organizations SET ${fields.join(", ")} WHERE id = ?`).bind(...values).run();
+  }
+
+  async countUsersByOrganization() {
+    const { results } = await this.db
+      .prepare("SELECT organization_id as organizationId, COUNT(*) as count FROM users WHERE organization_id IS NOT NULL GROUP BY organization_id")
+      .all<{ organizationId: string; count: number }>();
+    const counts: Record<string, number> = {};
+    for (const row of results) counts[row.organizationId] = row.count;
+    return counts;
+  }
+
   async createArtifact(artifact: Artifact) {
     await this.db
       .prepare(

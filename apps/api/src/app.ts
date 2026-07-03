@@ -9,6 +9,7 @@ import { registerUserRoutes } from "./routes/users.js";
 import { registerArtifactRoutes } from "./routes/artifacts.js";
 import { registerCustomFieldRoutes } from "./routes/customFields.js";
 import { registerApiKeyRoutes } from "./routes/apiKeys.js";
+import { registerOrganizationRoutes } from "./routes/organizations.js";
 import { registerPublicRoutes } from "./routes/public.js";
 
 export interface HonoEnv {
@@ -43,6 +44,7 @@ export function createApp(overrideRepo?: Repo) {
   registerArtifactRoutes(app);
   registerCustomFieldRoutes(app);
   registerApiKeyRoutes(app);
+  registerOrganizationRoutes(app);
   registerPublicRoutes(app);
 
   return app;

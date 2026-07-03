@@ -38,6 +38,18 @@ export class MemoryRepo implements Repo {
   async listOrganizations() {
     return [...this.organizations.values()];
   }
+  async updateOrganization(id: string, patch: Partial<Pick<Organization, "name" | "slug">>) {
+    const existing = this.organizations.get(id);
+    if (existing) this.organizations.set(id, { ...existing, ...patch });
+  }
+  async countUsersByOrganization() {
+    const counts: Record<string, number> = {};
+    for (const u of this.users.values()) {
+      if (!u.organizationId) continue;
+      counts[u.organizationId] = (counts[u.organizationId] ?? 0) + 1;
+    }
+    return counts;
+  }
 
   async createArtifact(artifact: Artifact) {
     this.artifacts.set(artifact.id, artifact);

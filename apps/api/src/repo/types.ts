@@ -21,6 +21,8 @@ export interface Repo {
   createOrganization(org: Organization): Promise<void>;
   getOrganizationById(id: string): Promise<Organization | null>;
   listOrganizations(): Promise<Organization[]>;
+  updateOrganization(id: string, patch: Partial<Pick<Organization, "name" | "slug">>): Promise<void>;
+  countUsersByOrganization(): Promise<Record<string, number>>;
 
   createArtifact(artifact: Artifact): Promise<void>;
   getArtifactById(id: string): Promise<Artifact | null>;

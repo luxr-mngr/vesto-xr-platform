@@ -14,6 +14,8 @@ export interface Organization {
   id: string;
   name: string;
   slug: string;
+  /** Present only on endpoints that compute it (GET /organizations) — not a stored column. */
+  memberCount?: number;
 }
 
 export type ArtifactStatus = "draft" | "pending_review" | "published" | "rejected";

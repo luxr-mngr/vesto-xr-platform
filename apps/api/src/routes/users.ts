@@ -48,6 +48,10 @@ export function registerUserRoutes(app: Hono<HonoEnv>) {
       return c.json({ error: "An account with that email already exists." }, 409);
     }
 
+    if (body.organizationId && !(await repo.getOrganizationById(body.organizationId))) {
+      return c.json({ error: "That organization does not exist." }, 400);
+    }
+
     const user: StoredUser = {
       id: crypto.randomUUID(),
       email,
@@ -94,6 +98,10 @@ export function registerUserRoutes(app: Hono<HonoEnv>) {
       organizationId?: string | null;
       status?: "active" | "disabled";
     }>();
+
+    if (body.organizationId && !(await repo.getOrganizationById(body.organizationId))) {
+      return c.json({ error: "That organization does not exist." }, 400);
+    }
 
     await repo.updateUser(id, {
       role: body.role ?? target.role,

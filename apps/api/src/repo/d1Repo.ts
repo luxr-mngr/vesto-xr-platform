@@ -100,6 +100,10 @@ export class D1Repo implements Repo {
     await this.db.prepare(`UPDATE users SET ${fields.join(", ")} WHERE id = ?`).bind(...values).run();
   }
 
+  async deleteUser(id: string) {
+    await this.db.prepare("DELETE FROM users WHERE id = ?").bind(id).run();
+  }
+
   async createOrganization(org: Organization) {
     await this.db
       .prepare("INSERT INTO organizations (id, name, slug) VALUES (?, ?, ?)")

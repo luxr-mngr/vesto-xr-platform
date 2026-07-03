@@ -25,6 +25,9 @@ export class MemoryRepo implements Repo {
     const existing = this.users.get(id);
     if (existing) this.users.set(id, { ...existing, ...patch });
   }
+  async deleteUser(id: string) {
+    this.users.delete(id);
+  }
 
   async createOrganization(org: Organization) {
     this.organizations.set(org.id, org);

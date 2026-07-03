@@ -93,6 +93,69 @@ describe("apps/api HTTP routes", () => {
     expect(res.status).toBe(403);
   });
 
+  it("lets an admin create a user directly, active with no approval queue", async () => {
+    const admin = await registerAndActivate("root-admin@example.com", "admin", null);
+
+    const res = await app.request(
+      "/users",
+      {
+        method: "POST",
+        headers: { "content-type": "application/json", cookie: admin.cookie },
+        body: JSON.stringify({ email: "curator-new@example.com", password: "password123", role: "curator", organizationId: "org-a" }),
+      },
+      env
+    );
+
+    expect(res.status).toBe(201);
+    const created = await json<{ status: string; role: string }>(res);
+    expect(created.status).toBe("active");
+    expect(created.role).toBe("curator");
+
+    const loginRes = await app.request(
+      "/auth/login",
+      { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email: "curator-new@example.com", password: "password123" }) },
+      env
+    );
+    expect(loginRes.status).toBe(200);
+  });
+
+  it("rejects a non-admin trying to create a user", async () => {
+    const { cookie } = await registerAndActivate("notadmin@example.com", "curator", "org-a");
+
+    const res = await app.request(
+      "/users",
+      {
+        method: "POST",
+        headers: { "content-type": "application/json", cookie },
+        body: JSON.stringify({ email: "sneaky@example.com", password: "password123", role: "admin" }),
+      },
+      env
+    );
+
+    expect(res.status).toBe(403);
+  });
+
+  it("lets an admin delete another user, but not themselves", async () => {
+    const admin = await registerAndActivate("deleter-admin@example.com", "admin", null);
+    const target = await registerAndActivate("todelete@example.com", "curator", "org-a");
+
+    const selfDeleteRes = await app.request(`/users/${admin.id}`, { method: "DELETE", headers: { cookie: admin.cookie } }, env);
+    expect(selfDeleteRes.status).toBe(400);
+
+    const res = await app.request(`/users/${target.id}`, { method: "DELETE", headers: { cookie: admin.cookie } }, env);
+    expect(res.status).toBe(200);
+    expect(await repo.getUserById(target.id)).toBeNull();
+  });
+
+  it("rejects a non-admin trying to delete a user", async () => {
+    const curator = await registerAndActivate("curator3@example.com", "curator", "org-a");
+    const other = await registerAndActivate("victim@example.com", "assistant", "org-a");
+
+    const res = await app.request(`/users/${other.id}`, { method: "DELETE", headers: { cookie: curator.cookie } }, env);
+
+    expect(res.status).toBe(403);
+  });
+
   it("full artifact lifecycle: assistant drafts, curator approves and publishes to the Store", async () => {
     const assistant = await registerAndActivate("assist@example.com", "assistant", "org-a");
     const curator = await registerAndActivate("curator2@example.com", "curator", "org-a");

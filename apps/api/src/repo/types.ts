@@ -16,6 +16,7 @@ export interface Repo {
   getUserByEmail(email: string): Promise<StoredUser | null>;
   listUsers(): Promise<StoredUser[]>;
   updateUser(id: string, patch: Partial<StoredUser>): Promise<void>;
+  deleteUser(id: string): Promise<void>;
 
   createOrganization(org: Organization): Promise<void>;
   getOrganizationById(id: string): Promise<Organization | null>;

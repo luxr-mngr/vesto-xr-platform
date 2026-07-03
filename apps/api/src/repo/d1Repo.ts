@@ -194,6 +194,10 @@ export class D1Repo implements Repo {
       fields.push("title = ?");
       values.push(patch.title);
     }
+    if (patch.glbR2Key !== undefined) {
+      fields.push("glb_r2_key = ?");
+      values.push(patch.glbR2Key);
+    }
     if (fields.length === 0) return;
     fields.push("updated_at = datetime('now')");
     values.push(id);

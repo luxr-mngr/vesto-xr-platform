@@ -286,9 +286,10 @@ r2://vestoxr-assets/
          └─ thumbnail.png
 ```
 
-- Bucket is **private** (no public bucket access); all reads go through the Worker, which issues short-lived signed URLs (R2 presigned GET, default TTL e.g. 10 minutes) — satisfies "API key authenticates the call, signed URL delivers the bytes" pattern discussed for the Unreal integration.
-- Uploads use presigned PUT URLs scoped to the exact `{organization_slug}/{artifact_id}/model.glb` key, requested only after the Worker has authorized the user for that organization.
-- Checksums (`checksum_sha256`) stored in D1 at upload completion for integrity verification and de-dup detection.
+- Bucket is **private** (no public bucket access); all reads go through the Worker.
+- **Web app uploads/downloads (implemented):** `PUT /api/artifacts/:id/glb` and `GET /api/artifacts/:id/glb` stream the GLB directly through the Worker's `BUCKET` (R2Bucket) binding, gated by the same `artifact.editMetadata` / `canView` checks as the rest of the artifact API — no presigned URL round trip. This is a deliberate simplification vs. the presigned-PUT sketch below: the app only has an R2Bucket binding (no S3-compatible access keys), and Workers can stream a request body straight into R2 without buffering it, so a direct-through-Worker PUT/GET is sufficient at this scale and keeps auth in one place.
+- **External API downloads (Unreal, not yet implemented):** still expected to use short-lived presigned R2 GET URLs (§11 `/artifacts/:id/download`) once that endpoint is built, since external clients shouldn't hold a session cookie.
+- Checksums (`checksum_sha256`) and presigned PUT for uploads remain open items — not implemented in the current scaffold.
 
 ---
 

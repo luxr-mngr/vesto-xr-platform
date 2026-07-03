@@ -54,6 +54,43 @@ export function registerArtifactRoutes(app: Hono<HonoEnv>) {
     return c.json({ ok: true });
   });
 
+  // Direct-to-Worker GLB upload (streamed into R2 via the Workers binding).
+  // Deviates from the presigned-PUT flow sketched in ERS §10: this scaffold's
+  // Env only carries an R2Bucket binding (no S3-compatible access keys), and
+  // Workers can stream a request body straight into R2 without buffering it,
+  // so there's no need for a presigned-URL round trip. See ERS §10 note.
+  app.put("/artifacts/:id/glb", requireAuth, async (c) => {
+    const actor = c.get("user")!;
+    const repo = c.get("repo");
+    const artifact = await repo.getArtifactById(c.req.param("id"));
+    if (!artifact) return c.json({ error: "Not found." }, 404);
+    if (!can(actor, "artifact.editMetadata", { artifact })) return c.json({ error: "Forbidden." }, 403);
+    if (!c.req.raw.body) return c.json({ error: "A GLB file body is required." }, 400);
+
+    const key = `${artifact.organizationId}/${artifact.id}/model.glb`;
+    await c.env.BUCKET.put(key, c.req.raw.body, {
+      httpMetadata: { contentType: "model/gltf-binary" },
+    });
+    await repo.updateArtifact(artifact.id, { glbR2Key: key });
+    return c.json({ glbR2Key: key });
+  });
+
+  // Streams the GLB back through the Worker (bucket is private, ERS §13).
+  app.get("/artifacts/:id/glb", requireAuth, async (c) => {
+    const actor = c.get("user")!;
+    const repo = c.get("repo");
+    const artifact = await repo.getArtifactById(c.req.param("id"));
+    if (!artifact || !canView(actor, artifact)) return c.json({ error: "Not found." }, 404);
+    if (!artifact.glbR2Key) return c.json({ error: "No GLB uploaded yet." }, 404);
+
+    const object = await c.env.BUCKET.get(artifact.glbR2Key);
+    if (!object) return c.json({ error: "GLB file missing from storage." }, 404);
+
+    return new Response(object.body, {
+      headers: { "content-type": "model/gltf-binary" },
+    });
+  });
+
   app.delete("/artifacts/:id", requireAuth, async (c) => {
     const actor = c.get("user")!;
     const repo = c.get("repo");
@@ -61,6 +98,7 @@ export function registerArtifactRoutes(app: Hono<HonoEnv>) {
     if (!artifact) return c.json({ error: "Not found." }, 404);
     if (!can(actor, "artifact.delete", { artifact })) return c.json({ error: "Forbidden." }, 403);
 
+    if (artifact.glbR2Key) await c.env.BUCKET.delete(artifact.glbR2Key);
     await repo.deleteArtifact(artifact.id);
     return c.json({ ok: true });
   });

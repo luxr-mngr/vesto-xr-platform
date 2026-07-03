@@ -3,9 +3,26 @@ import { createApp } from "./app.js";
 import { MemoryRepo } from "./repo/memoryRepo.js";
 import type { Env } from "./types/env.js";
 
+/** Minimal in-memory stand-in for the R2Bucket binding, just enough for the GLB routes. */
+class MemoryR2Bucket {
+  private objects = new Map<string, ArrayBuffer>();
+
+  async put(key: string, value: ReadableStream | ArrayBuffer | null) {
+    const buf = value instanceof ReadableStream ? await new Response(value).arrayBuffer() : (value ?? new ArrayBuffer(0));
+    this.objects.set(key, buf);
+  }
+  async get(key: string) {
+    const buf = this.objects.get(key);
+    return buf ? { body: new Response(buf).body! } : null;
+  }
+  async delete(key: string) {
+    this.objects.delete(key);
+  }
+}
+
 const env: Env = {
   DB: {} as D1Database,
-  BUCKET: {} as R2Bucket,
+  BUCKET: new MemoryR2Bucket() as unknown as R2Bucket,
   JWT_SECRET: "test-secret-not-for-production",
   APP_VERSION: "0.1.0-test",
 };
@@ -324,6 +341,52 @@ describe("apps/api HTTP routes", () => {
       env
     );
     expect(visRes.status).toBe(200);
+  });
+
+  it("curator uploads a GLB, can download it back, and it's gone after delete", async () => {
+    const curator = await registerAndActivate("glb-curator@example.com", "curator", "org-a");
+    const outsider = await registerAndActivate("glb-outsider@example.com", "curator", "org-b");
+
+    const createRes = await app.request(
+      "/artifacts",
+      {
+        method: "POST",
+        headers: { "content-type": "application/json", cookie: curator.cookie },
+        body: JSON.stringify({ title: "Ceramic Vase" }),
+      },
+      env
+    );
+    const artifact = await json<{ id: string; glbR2Key: string | null }>(createRes);
+    expect(artifact.glbR2Key).toBeNull();
+
+    const glbBytes = new Uint8Array([1, 2, 3, 4]);
+
+    // A curator from a different org may not upload to this artifact.
+    const forbiddenPut = await app.request(
+      `/artifacts/${artifact.id}/glb`,
+      { method: "PUT", headers: { cookie: outsider.cookie }, body: glbBytes },
+      env
+    );
+    expect(forbiddenPut.status).toBe(403);
+
+    const putRes = await app.request(
+      `/artifacts/${artifact.id}/glb`,
+      { method: "PUT", headers: { cookie: curator.cookie }, body: glbBytes },
+      env
+    );
+    expect(putRes.status).toBe(200);
+    expect((await repo.getArtifactById(artifact.id))?.glbR2Key).not.toBeNull();
+
+    const getRes = await app.request(`/artifacts/${artifact.id}/glb`, { headers: { cookie: curator.cookie } }, env);
+    expect(getRes.status).toBe(200);
+    expect(new Uint8Array(await getRes.arrayBuffer())).toEqual(glbBytes);
+
+    // Still not visible to a curator outside the org (private draft).
+    const forbiddenGet = await app.request(`/artifacts/${artifact.id}/glb`, { headers: { cookie: outsider.cookie } }, env);
+    expect(forbiddenGet.status).toBe(404);
+
+    const deleteRes = await app.request(`/artifacts/${artifact.id}`, { method: "DELETE", headers: { cookie: curator.cookie } }, env);
+    expect(deleteRes.status).toBe(200);
   });
 
   it("blocks a curator from approving another organization's artifact", async () => {

@@ -19,6 +19,8 @@ describe("rbac.can", () => {
       "user.approve",
       "user.assignRoleAndOrg",
       "user.disable",
+      "user.create",
+      "user.delete",
       "organization.create",
       "customField.create",
     ] as const) {

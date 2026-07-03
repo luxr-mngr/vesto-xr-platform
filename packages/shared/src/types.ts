@@ -51,6 +51,8 @@ export type Action =
   | "user.approve"
   | "user.assignRoleAndOrg"
   | "user.disable"
+  | "user.create"
+  | "user.delete"
   | "organization.create"
   | "customField.create"
   | "artifact.upload"

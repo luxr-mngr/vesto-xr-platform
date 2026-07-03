@@ -23,6 +23,8 @@ export function can(actor: User, action: Action, context: RbacContext = {}): boo
     case "user.approve":
     case "user.assignRoleAndOrg":
     case "user.disable":
+    case "user.create":
+    case "user.delete":
     case "organization.create":
     case "customField.create":
       return actor.role === "admin";

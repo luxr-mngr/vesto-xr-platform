@@ -2,9 +2,11 @@ import { useEffect, useState } from "react";
 import type { Artifact } from "@vestoxr/shared";
 import { apiFetch } from "../lib/api.js";
 import { useAuth } from "../context/AuthContext.js";
+import { useI18n } from "../lib/i18n.js";
 
 export function Dashboard() {
   const { user } = useAuth();
+  const { t } = useI18n();
   const [artifacts, setArtifacts] = useState<Artifact[] | null>(null);
 
   useEffect(() => {
@@ -17,16 +19,16 @@ export function Dashboard() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold">Inicio</h1>
+      <h1 className="text-2xl font-bold">{t("nav.dashboard")}</h1>
       <p className="mt-1 text-text-secondary dark:text-text-secondary-dark">
-        Bienvenido, {user?.email}
+        {t("dashboard.welcome", { email: user?.email ?? "" })}
       </p>
 
       <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
         {[
-          { label: "Artifacts visible to you", value: total },
-          { label: "Published", value: published },
-          { label: "Pending review", value: pending },
+          { label: t("dashboard.statVisible"), value: total },
+          { label: t("dashboard.statPublished"), value: published },
+          { label: t("dashboard.statPending"), value: pending },
         ].map((stat) => (
           <div
             key={stat.label}

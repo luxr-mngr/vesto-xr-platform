@@ -1,10 +1,11 @@
 import type { Artifact } from "@vestoxr/shared";
+import { useI18n } from "../lib/i18n.js";
 
-const STATUS_LABEL: Record<Artifact["status"], string> = {
-  draft: "Draft",
-  pending_review: "Pending review",
-  published: "Published",
-  rejected: "Rejected",
+const STATUS_KEY: Record<Artifact["status"], "artifactGrid.statusDraft" | "artifactGrid.statusPendingReview" | "artifactGrid.statusPublished" | "artifactGrid.statusRejected"> = {
+  draft: "artifactGrid.statusDraft",
+  pending_review: "artifactGrid.statusPendingReview",
+  published: "artifactGrid.statusPublished",
+  rejected: "artifactGrid.statusRejected",
 };
 
 const STATUS_CLASSES: Record<Artifact["status"], string> = {
@@ -15,6 +16,8 @@ const STATUS_CLASSES: Record<Artifact["status"], string> = {
 };
 
 export function ArtifactGrid({ artifacts, emptyLabel }: { artifacts: Artifact[]; emptyLabel: string }) {
+  const { t } = useI18n();
+
   if (artifacts.length === 0) {
     return (
       <p className="rounded-xl border border-dashed border-border p-8 text-center text-text-secondary dark:border-border-dark dark:text-text-secondary-dark">
@@ -31,11 +34,11 @@ export function ArtifactGrid({ artifacts, emptyLabel }: { artifacts: Artifact[];
           className="rounded-xl border border-border bg-surface p-4 dark:border-border-dark dark:bg-surface-dark"
         >
           <div className="mb-3 flex aspect-square items-center justify-center rounded-lg bg-black/5 text-text-secondary dark:bg-white/5 dark:text-text-secondary-dark">
-            GLB preview
+            {t("artifactGrid.preview")}
           </div>
           <p className="truncate font-medium">{artifact.title}</p>
           <span className={`mt-2 inline-block rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_CLASSES[artifact.status]}`}>
-            {STATUS_LABEL[artifact.status]}
+            {t(STATUS_KEY[artifact.status])}
           </span>
         </div>
       ))}

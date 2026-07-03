@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import type { Role } from "@vestoxr/shared";
 import { apiFetch } from "../lib/api.js";
+import { useI18n } from "../lib/i18n.js";
 
 interface AdminUser {
   id: string;
@@ -13,7 +14,15 @@ interface AdminUser {
 const ROLES: Role[] = ["admin", "curator", "assistant"];
 
 export function Admin() {
+  const { t } = useI18n();
   const [users, setUsers] = useState<AdminUser[] | null>(null);
+  const [showCreate, setShowCreate] = useState(false);
+  const [newEmail, setNewEmail] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [newRole, setNewRole] = useState<Role>("assistant");
+  const [newOrg, setNewOrg] = useState("");
+  const [createError, setCreateError] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
 
   async function load() {
     setUsers(await apiFetch<AdminUser[]>("/users"));
@@ -28,26 +37,132 @@ export function Admin() {
     await load();
   }
 
+  async function createUser(e: FormEvent) {
+    e.preventDefault();
+    setCreateError(null);
+    setCreating(true);
+    try {
+      await apiFetch("/users", {
+        method: "POST",
+        body: JSON.stringify({
+          email: newEmail,
+          password: newPassword,
+          role: newRole,
+          organizationId: newOrg || null,
+        }),
+      });
+      setNewEmail("");
+      setNewPassword("");
+      setNewRole("assistant");
+      setNewOrg("");
+      setShowCreate(false);
+      await load();
+    } catch (err) {
+      setCreateError(err instanceof Error ? err.message : t("login.genericError"));
+    } finally {
+      setCreating(false);
+    }
+  }
+
+  async function remove(id: string) {
+    if (!confirm(t("admin.confirmDelete"))) return;
+    await apiFetch(`/users/${id}`, { method: "DELETE" });
+    await load();
+  }
+
   const pendingCount = users?.filter((u) => u.status === "pending").length ?? 0;
   const activeCount = users?.filter((u) => u.status === "active").length ?? 0;
 
   return (
     <div>
       <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Administración de Usuarios</h1>
+        <h1 className="text-2xl font-bold">{t("admin.title")}</h1>
+        <button
+          onClick={() => setShowCreate((v) => !v)}
+          className="rounded-md bg-accent px-3 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90"
+        >
+          {t("admin.addUser")}
+        </button>
       </div>
 
+      {showCreate && (
+        <form
+          onSubmit={createUser}
+          className="mb-6 flex flex-wrap items-end gap-3 rounded-xl border border-border bg-surface p-5 dark:border-border-dark dark:bg-surface-dark"
+        >
+          <div>
+            <label className="mb-1 block text-sm font-medium">{t("admin.newUserEmail")}</label>
+            <input
+              type="email"
+              required
+              value={newEmail}
+              onChange={(e) => setNewEmail(e.target.value)}
+              className="w-56 rounded-md border border-border bg-transparent px-3 py-2 text-sm outline-none focus:border-accent dark:border-border-dark"
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium">{t("admin.newUserPassword")}</label>
+            <input
+              type="password"
+              required
+              minLength={8}
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              className="w-48 rounded-md border border-border bg-transparent px-3 py-2 text-sm outline-none focus:border-accent dark:border-border-dark"
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium">{t("admin.role")}</label>
+            <select
+              value={newRole}
+              onChange={(e) => setNewRole(e.target.value as Role)}
+              className="rounded-md border border-border bg-transparent px-2 py-2 text-sm dark:border-border-dark"
+            >
+              {ROLES.map((r) => (
+                <option key={r} value={r}>
+                  {r}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium">{t("admin.organization")}</label>
+            <input
+              value={newOrg}
+              onChange={(e) => setNewOrg(e.target.value)}
+              placeholder="org-id"
+              className="w-32 rounded-md border border-border bg-transparent px-3 py-2 text-sm outline-none focus:border-accent dark:border-border-dark"
+            />
+          </div>
+          <button
+            type="submit"
+            disabled={creating}
+            className="rounded-md bg-accent px-3 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+          >
+            {t("admin.create")}
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowCreate(false)}
+            className="rounded-md border border-border px-3 py-2 text-sm font-medium text-text-secondary hover:bg-black/5 dark:border-border-dark dark:text-text-secondary-dark dark:hover:bg-white/5"
+          >
+            {t("admin.cancel")}
+          </button>
+          {createError && <p className="w-full text-sm text-red-500">{createError}</p>}
+        </form>
+      )}
+
       <div className="mb-6 rounded-xl border border-border bg-surface p-5 dark:border-border-dark dark:bg-surface-dark">
-        <h2 className="mb-3 text-sm font-semibold">Información de Cuentas</h2>
+        <h2 className="mb-3 text-sm font-semibold">{t("admin.accountInfo")}</h2>
         <div className="flex gap-8 text-sm">
           <p>
-            Total: <span className="font-semibold">{users?.length ?? "—"}</span>
+            {t("admin.total")}: <span className="font-semibold">{users?.length ?? "—"}</span>
           </p>
           <p>
-            Activos: <span className="font-semibold">{activeCount}</span>
+            {t("admin.active")}: <span className="font-semibold">{activeCount}</span>
           </p>
           <p>
-            Pendientes de aprobación: <span className="font-semibold">{pendingCount}</span>
+            {t("admin.pendingApproval")}: <span className="font-semibold">{pendingCount}</span>
           </p>
         </div>
       </div>
@@ -56,11 +171,11 @@ export function Admin() {
         <table className="w-full text-left text-sm">
           <thead className="border-b border-border text-text-secondary dark:border-border-dark dark:text-text-secondary-dark">
             <tr>
-              <th className="px-4 py-3 font-medium">Email</th>
-              <th className="px-4 py-3 font-medium">Rol</th>
-              <th className="px-4 py-3 font-medium">Organización</th>
-              <th className="px-4 py-3 font-medium">Estado</th>
-              <th className="px-4 py-3 font-medium">Acciones</th>
+              <th className="px-4 py-3 font-medium">{t("admin.email")}</th>
+              <th className="px-4 py-3 font-medium">{t("admin.role")}</th>
+              <th className="px-4 py-3 font-medium">{t("admin.organization")}</th>
+              <th className="px-4 py-3 font-medium">{t("admin.status")}</th>
+              <th className="px-4 py-3 font-medium">{t("admin.actions")}</th>
             </tr>
           </thead>
           <tbody>
@@ -102,10 +217,10 @@ export function Admin() {
                     }`}
                     title={
                       u.status === "pending"
-                        ? "Assign a role and organization first"
+                        ? t("admin.assignFirst")
                         : u.status === "active"
-                          ? "Disable account"
-                          : "Enable account"
+                          ? t("admin.disableAccount")
+                          : t("admin.enableAccount")
                     }
                   >
                     <span
@@ -115,8 +230,20 @@ export function Admin() {
                     />
                   </button>
                 </td>
-                <td className="px-4 py-3 text-text-secondary dark:text-text-secondary-dark">
-                  {u.status === "pending" ? "Awaiting approval" : ""}
+                <td className="px-4 py-3">
+                  <div className="flex items-center gap-3">
+                    {u.status === "pending" && (
+                      <span className="text-text-secondary dark:text-text-secondary-dark">
+                        {t("admin.awaitingApproval")}
+                      </span>
+                    )}
+                    <button
+                      onClick={() => remove(u.id)}
+                      className="font-medium text-red-500 hover:underline"
+                    >
+                      {t("admin.delete")}
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}

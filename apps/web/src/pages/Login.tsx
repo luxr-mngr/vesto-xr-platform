@@ -2,9 +2,12 @@ import { useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.js";
 import { ApiError, apiFetch } from "../lib/api.js";
+import { useI18n } from "../lib/i18n.js";
+import luxrLogo from "../assets/luxr-logo.svg";
 
 export function Login() {
   const { login } = useAuth();
+  const { t } = useI18n();
   const navigate = useNavigate();
   const [mode, setMode] = useState<"login" | "register">("login");
   const [email, setEmail] = useState("");
@@ -26,7 +29,7 @@ export function Login() {
         setRegistered(true);
       }
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Something went wrong.");
+      setError(err instanceof ApiError ? err.message : t("login.genericError"));
     } finally {
       setSubmitting(false);
     }
@@ -36,16 +39,14 @@ export function Login() {
     <div className="flex min-h-screen items-center justify-center bg-bg px-4 dark:bg-bg-dark">
       <div className="w-full max-w-md">
         <p className="mb-8 text-center text-2xl font-bold tracking-tight text-text-primary dark:text-text-primary-dark">
-          VestoXR
+          {t("login.appName")}
         </p>
 
         <div className="rounded-xl border border-border bg-surface p-6 dark:border-border-dark dark:bg-surface-dark">
           {registered ? (
             <div className="space-y-2 text-center">
-              <h1 className="text-lg font-semibold">Registration received</h1>
-              <p className="text-sm text-text-secondary dark:text-text-secondary-dark">
-                An administrator needs to approve your account and assign a role before you can log in.
-              </p>
+              <h1 className="text-lg font-semibold">{t("login.registeredTitle")}</h1>
+              <p className="text-sm text-text-secondary dark:text-text-secondary-dark">{t("login.registeredBody")}</p>
               <button
                 onClick={() => {
                   setRegistered(false);
@@ -53,19 +54,19 @@ export function Login() {
                 }}
                 className="mt-2 text-sm font-medium text-accent hover:underline"
               >
-                Back to login
+                {t("login.backToLogin")}
               </button>
             </div>
           ) : (
             <>
-              <h1 className="text-lg font-semibold">{mode === "login" ? "Iniciar sesión" : "Crear cuenta"}</h1>
+              <h1 className="text-lg font-semibold">{mode === "login" ? t("login.titleLogin") : t("login.titleRegister")}</h1>
               <p className="mb-6 text-sm text-text-secondary dark:text-text-secondary-dark">
-                {mode === "login" ? "Ingresa tus credenciales para acceder a tu cuenta" : "Un admin deberá aprobar tu cuenta"}
+                {mode === "login" ? t("login.subtitleLogin") : t("login.subtitleRegister")}
               </p>
 
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
-                  <label className="mb-1 block text-sm font-medium">Correo electrónico</label>
+                  <label className="mb-1 block text-sm font-medium">{t("login.email")}</label>
                   <input
                     type="email"
                     required
@@ -76,7 +77,7 @@ export function Login() {
                   />
                 </div>
                 <div>
-                  <label className="mb-1 block text-sm font-medium">Contraseña</label>
+                  <label className="mb-1 block text-sm font-medium">{t("login.password")}</label>
                   <input
                     type="password"
                     required
@@ -94,29 +95,34 @@ export function Login() {
                   disabled={submitting}
                   className="w-full rounded-md bg-accent px-3 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
                 >
-                  {mode === "login" ? "Iniciar sesión" : "Registrarme"}
+                  {mode === "login" ? t("login.submitLogin") : t("login.submitRegister")}
                 </button>
               </form>
 
               <p className="mt-6 text-center text-sm text-text-secondary dark:text-text-secondary-dark">
                 {mode === "login" ? (
                   <>
-                    ¿No tienes una cuenta?{" "}
+                    {t("login.noAccount")}{" "}
                     <button onClick={() => setMode("register")} className="font-semibold text-accent hover:underline">
-                      Regístrate
+                      {t("login.signUp")}
                     </button>
                   </>
                 ) : (
                   <>
-                    ¿Ya tienes una cuenta?{" "}
+                    {t("login.haveAccount")}{" "}
                     <button onClick={() => setMode("login")} className="font-semibold text-accent hover:underline">
-                      Inicia sesión
+                      {t("login.signIn")}
                     </button>
                   </>
                 )}
               </p>
             </>
           )}
+        </div>
+
+        <div className="mt-6 flex items-center justify-center gap-2 text-text-secondary dark:text-text-secondary-dark">
+          <span className="text-xs">{t("login.poweredBy")}</span>
+          <img src={luxrLogo} alt="LuXR" className="h-3.5 w-auto opacity-80" />
         </div>
       </div>
     </div>

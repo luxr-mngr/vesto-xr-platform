@@ -1,0 +1,20 @@
+name = "vestoxr-api"
+main = "src/index.ts"
+compatibility_date = "2026-07-01"
+
+# APP_VERSION drives the visible version indicator in the web UI's response
+# headers / health endpoint; bump it alongside apps/web's displayed version.
+[vars]
+APP_VERSION = "0.1.0"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "vestoxr-db"
+database_id = "REPLACE_WITH_REAL_D1_DATABASE_ID"
+migrations_dir = "migrations"
+
+[[r2_buckets]]
+binding = "BUCKET"
+bucket_name = "vestoxr-assets"
+
+# JWT_SECRET must be set via `wrangler secret put JWT_SECRET` — never committed here.

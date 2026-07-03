@@ -26,9 +26,10 @@ export function Layout() {
   return (
     <div className="flex min-h-screen bg-bg text-text-primary dark:bg-bg-dark dark:text-text-primary-dark">
       <aside className="flex w-64 flex-col border-r border-border bg-surface dark:border-border-dark dark:bg-surface-dark">
-        <div className="px-5 py-6">
+        <div className="flex items-center gap-1.5 px-5 py-6">
           <span className="text-lg font-bold tracking-wide">VestoXR</span>
-          <span className="ml-2 text-xs font-medium text-text-secondary dark:text-text-secondary-dark">by LUXR</span>
+          <span className="text-xs font-medium text-text-secondary dark:text-text-secondary-dark">by</span>
+          <img src={luxrLogo} alt="LUXR" className="h-3.5 w-auto opacity-80" />
         </div>
 
         {user && (

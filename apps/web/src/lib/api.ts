@@ -23,3 +23,18 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise
 
   return res.status === 204 ? (undefined as T) : ((await res.json()) as T);
 }
+
+/** Uploads a binary file body directly (no JSON content-type) — used for GLB PUTs. */
+export async function apiUploadFile(path: string, file: File): Promise<void> {
+  const res = await fetch(`${API_BASE}${path}`, {
+    method: "PUT",
+    credentials: "include",
+    headers: { "content-type": file.type || "application/octet-stream" },
+    body: file,
+  });
+
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}) as { error?: string });
+    throw new ApiError(res.status, body.error ?? `Upload failed with status ${res.status}`);
+  }
+}

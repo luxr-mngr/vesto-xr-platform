@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react";
-import type { Role } from "@vestoxr/shared";
+import type { Organization, Role } from "@vestoxr/shared";
+import { Check, Plus, Trash2, UserPlus, X } from "lucide-react";
 import { apiFetch } from "../lib/api.js";
 import { useI18n } from "../lib/i18n.js";
 
@@ -16,6 +17,7 @@ const ROLES: Role[] = ["admin", "curator", "assistant"];
 export function Admin() {
   const { t } = useI18n();
   const [users, setUsers] = useState<AdminUser[] | null>(null);
+  const [organizations, setOrganizations] = useState<Organization[] | null>(null);
   const [showCreate, setShowCreate] = useState(false);
   const [newEmail, setNewEmail] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -24,13 +26,43 @@ export function Admin() {
   const [createError, setCreateError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
 
+  const [showNewOrg, setShowNewOrg] = useState(false);
+  const [newOrgName, setNewOrgName] = useState("");
+  const [orgError, setOrgError] = useState<string | null>(null);
+  const [creatingOrg, setCreatingOrg] = useState(false);
+
   async function load() {
     setUsers(await apiFetch<AdminUser[]>("/users"));
   }
 
+  async function loadOrganizations() {
+    setOrganizations(await apiFetch<Organization[]>("/organizations"));
+  }
+
   useEffect(() => {
     load();
+    loadOrganizations();
   }, []);
+
+  async function createOrganization(e: FormEvent) {
+    e.preventDefault();
+    setOrgError(null);
+    setCreatingOrg(true);
+    try {
+      const org = await apiFetch<Organization>("/organizations", {
+        method: "POST",
+        body: JSON.stringify({ name: newOrgName }),
+      });
+      setNewOrgName("");
+      setShowNewOrg(false);
+      await loadOrganizations();
+      setNewOrg(org.id);
+    } catch (err) {
+      setOrgError(err instanceof Error ? err.message : t("login.genericError"));
+    } finally {
+      setCreatingOrg(false);
+    }
+  }
 
   async function patch(id: string, body: Partial<Pick<AdminUser, "role" | "organizationId" | "status">>) {
     await apiFetch(`/users/${id}`, { method: "PATCH", body: JSON.stringify(body) });
@@ -79,8 +111,9 @@ export function Admin() {
         <h1 className="text-2xl font-bold">{t("admin.title")}</h1>
         <button
           onClick={() => setShowCreate((v) => !v)}
-          className="rounded-md bg-accent px-3 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90"
+          className="flex items-center gap-2 rounded-md bg-accent px-3 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90"
         >
+          <UserPlus size={16} />
           {t("admin.addUser")}
         </button>
       </div>
@@ -127,25 +160,65 @@ export function Admin() {
           </div>
           <div>
             <label className="mb-1 block text-sm font-medium">{t("admin.organization")}</label>
-            <input
-              value={newOrg}
-              onChange={(e) => setNewOrg(e.target.value)}
-              placeholder="org-id"
-              className="w-32 rounded-md border border-border bg-transparent px-3 py-2 text-sm outline-none focus:border-accent dark:border-border-dark"
-            />
+            <div className="flex items-center gap-2">
+              <select
+                value={newOrg}
+                onChange={(e) => setNewOrg(e.target.value)}
+                className="w-40 rounded-md border border-border bg-transparent px-2 py-2 text-sm dark:border-border-dark"
+              >
+                <option value="">—</option>
+                {(organizations ?? []).map((o) => (
+                  <option key={o.id} value={o.id}>
+                    {o.name}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                onClick={() => setShowNewOrg((v) => !v)}
+                title={t("admin.newOrganization")}
+                className="rounded-md border border-border p-2 text-text-secondary hover:bg-black/5 dark:border-border-dark dark:text-text-secondary-dark dark:hover:bg-white/5"
+              >
+                <Plus size={16} />
+              </button>
+            </div>
           </div>
+          {showNewOrg && (
+            <div className="flex items-end gap-2">
+              <div>
+                <label className="mb-1 block text-sm font-medium">{t("admin.newOrganization")}</label>
+                <input
+                  value={newOrgName}
+                  onChange={(e) => setNewOrgName(e.target.value)}
+                  className="w-40 rounded-md border border-border bg-transparent px-3 py-2 text-sm outline-none focus:border-accent dark:border-border-dark"
+                />
+              </div>
+              <button
+                type="button"
+                disabled={creatingOrg || !newOrgName.trim()}
+                onClick={createOrganization}
+                className="flex items-center gap-2 rounded-md bg-accent px-3 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+              >
+                <Check size={16} />
+                {t("admin.create")}
+              </button>
+              {orgError && <p className="w-full text-sm text-red-500">{orgError}</p>}
+            </div>
+          )}
           <button
             type="submit"
             disabled={creating}
-            className="rounded-md bg-accent px-3 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+            className="flex items-center gap-2 rounded-md bg-accent px-3 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
           >
+            <Check size={16} />
             {t("admin.create")}
           </button>
           <button
             type="button"
             onClick={() => setShowCreate(false)}
-            className="rounded-md border border-border px-3 py-2 text-sm font-medium text-text-secondary hover:bg-black/5 dark:border-border-dark dark:text-text-secondary-dark dark:hover:bg-white/5"
+            className="flex items-center gap-2 rounded-md border border-border px-3 py-2 text-sm font-medium text-text-secondary hover:bg-black/5 dark:border-border-dark dark:text-text-secondary-dark dark:hover:bg-white/5"
           >
+            <X size={16} />
             {t("admin.cancel")}
           </button>
           {createError && <p className="w-full text-sm text-red-500">{createError}</p>}
@@ -199,12 +272,18 @@ export function Admin() {
                   </select>
                 </td>
                 <td className="px-4 py-3">
-                  <input
-                    defaultValue={u.organizationId ?? ""}
-                    placeholder="org-id"
-                    onBlur={(e) => patch(u.id, { organizationId: e.target.value || null })}
-                    className="w-32 rounded-md border border-border bg-transparent px-2 py-1 dark:border-border-dark"
-                  />
+                  <select
+                    value={u.organizationId ?? ""}
+                    onChange={(e) => patch(u.id, { organizationId: e.target.value || null })}
+                    className="rounded-md border border-border bg-transparent px-2 py-1 dark:border-border-dark"
+                  >
+                    <option value="">—</option>
+                    {(organizations ?? []).map((o) => (
+                      <option key={o.id} value={o.id}>
+                        {o.name}
+                      </option>
+                    ))}
+                  </select>
                 </td>
                 <td className="px-4 py-3">
                   <button
@@ -239,8 +318,9 @@ export function Admin() {
                     )}
                     <button
                       onClick={() => remove(u.id)}
-                      className="font-medium text-red-500 hover:underline"
+                      className="flex items-center gap-1 font-medium text-red-500 hover:underline"
                     >
+                      <Trash2 size={14} />
                       {t("admin.delete")}
                     </button>
                   </div>

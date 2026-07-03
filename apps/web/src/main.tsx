@@ -4,6 +4,7 @@ import { BrowserRouter } from "react-router-dom";
 import App from "./App.js";
 import { I18nProvider } from "./lib/i18n.js";
 import "./styles/index.css";
+import "@google/model-viewer";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>

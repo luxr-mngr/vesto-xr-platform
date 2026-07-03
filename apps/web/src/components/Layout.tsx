@@ -1,4 +1,5 @@
 import { NavLink, Outlet } from "react-router-dom";
+import { LogOut } from "lucide-react";
 import { useAuth } from "../context/AuthContext.js";
 import { APP_VERSION } from "../lib/version.js";
 import { useI18n } from "../lib/i18n.js";
@@ -52,9 +53,24 @@ export function Layout() {
               {item.label}
             </NavLink>
           ))}
+          {(user?.role === "admin" || user?.role === "curator") && (
+            <NavLink to="/api-keys" className={({ isActive }) => navLinkClasses(isActive)}>
+              {t("nav.apiKeys")}
+            </NavLink>
+          )}
           {user?.role === "admin" && (
             <NavLink to="/admin" className={({ isActive }) => navLinkClasses(isActive)}>
               {t("nav.admin")}
+            </NavLink>
+          )}
+          {user?.role === "admin" && (
+            <NavLink to="/custom-fields" className={({ isActive }) => navLinkClasses(isActive)}>
+              {t("nav.customFields")}
+            </NavLink>
+          )}
+          {user?.role === "admin" && (
+            <NavLink to="/organizations" className={({ isActive }) => navLinkClasses(isActive)}>
+              {t("nav.organizations")}
             </NavLink>
           )}
         </nav>
@@ -78,8 +94,9 @@ export function Layout() {
           </div>
           <button
             onClick={() => void logout()}
-            className="w-full rounded-md border border-border px-3 py-2 text-sm font-medium text-text-secondary hover:bg-black/5 dark:border-border-dark dark:text-text-secondary-dark dark:hover:bg-white/5"
+            className="flex w-full items-center justify-center gap-2 rounded-md border border-border px-3 py-2 text-sm font-medium text-text-secondary hover:bg-black/5 dark:border-border-dark dark:text-text-secondary-dark dark:hover:bg-white/5"
           >
+            <LogOut size={16} />
             {t("sidebar.logout")}
           </button>
           <p className="text-center text-xs text-text-secondary dark:text-text-secondary-dark">v{APP_VERSION}</p>

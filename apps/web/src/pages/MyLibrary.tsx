@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
-import { isVisibleInMyLibrary, type Artifact, type User } from "@vestoxr/shared";
-import { apiFetch } from "../lib/api.js";
-import { ArtifactGrid } from "../components/ArtifactGrid.js";
+import { useEffect, useState, type FormEvent } from "react";
+import { isVisibleInMyLibrary, type Artifact, type Organization, type User } from "@vestoxr/shared";
+import { Upload } from "lucide-react";
+import { apiFetch, apiUploadFile } from "../lib/api.js";
+import { ArtifactGrid, type ArtifactActions } from "../components/ArtifactGrid.js";
 import { useAuth } from "../context/AuthContext.js";
 import { useI18n } from "../lib/i18n.js";
 
@@ -10,23 +11,160 @@ export function MyLibrary() {
   const { user } = useAuth();
   const { t } = useI18n();
   const [artifacts, setArtifacts] = useState<Artifact[] | null>(null);
+  const [organizations, setOrganizations] = useState<Organization[]>([]);
+  const [showUpload, setShowUpload] = useState(false);
+  const [newTitle, setNewTitle] = useState("");
+  const [newOrgId, setNewOrgId] = useState("");
+  const [newFile, setNewFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+
+  async function load() {
+    setArtifacts(await apiFetch<Artifact[]>("/artifacts"));
+  }
 
   useEffect(() => {
-    apiFetch<Artifact[]>("/artifacts").then(setArtifacts);
-  }, []);
+    load();
+    if (user?.role === "admin") apiFetch<Organization[]>("/organizations").then(setOrganizations);
+  }, [user?.role]);
 
   // `status: "active"` is safe to assume here: this page only renders behind
   // ProtectedRoute, which already requires an authenticated (active) user.
   const actor: User | null = user ? { ...user, status: "active" } : null;
   const mine = actor ? (artifacts ?? []).filter((a) => isVisibleInMyLibrary(actor, a)) : [];
 
+  async function upload(e: FormEvent) {
+    e.preventDefault();
+    if (!newTitle.trim()) return;
+    setUploadError(null);
+    setUploading(true);
+    try {
+      const artifact = await apiFetch<Artifact>("/artifacts", {
+        method: "POST",
+        body: JSON.stringify({ title: newTitle.trim(), organizationId: newOrgId || undefined }),
+      });
+      if (newFile) await apiUploadFile(`/artifacts/${artifact.id}/glb`, newFile);
+      setNewTitle("");
+      setNewOrgId("");
+      setNewFile(null);
+      setShowUpload(false);
+      await load();
+    } catch (err) {
+      setUploadError(err instanceof Error ? err.message : t("login.genericError"));
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  const actions: ArtifactActions = {
+    onSubmit: async (a) => {
+      await apiFetch(`/artifacts/${a.id}/submit`, { method: "POST" });
+      await load();
+    },
+    onApprove: async (a) => {
+      await apiFetch(`/artifacts/${a.id}/approve`, { method: "POST" });
+      await load();
+    },
+    onReject: async (a) => {
+      if (!confirm(t("myLibrary.confirmReject"))) return;
+      await apiFetch(`/artifacts/${a.id}/reject`, { method: "POST" });
+      await load();
+    },
+    onToggleVisibility: async (a) => {
+      const visibility = a.visibility === "public" ? "private" : "public";
+      await apiFetch(`/artifacts/${a.id}/visibility`, { method: "POST", body: JSON.stringify({ visibility }) });
+      await load();
+    },
+    onEdit: async (a) => {
+      const title = window.prompt(t("myLibrary.editTitle"), a.title);
+      if (!title || title === a.title) return;
+      await apiFetch(`/artifacts/${a.id}`, { method: "PATCH", body: JSON.stringify({ title }) });
+      await load();
+    },
+    onDelete: async (a) => {
+      if (!confirm(t("myLibrary.confirmDelete"))) return;
+      await apiFetch(`/artifacts/${a.id}`, { method: "DELETE" });
+      await load();
+    },
+  };
+
   return (
     <div>
-      <h1 className="text-2xl font-bold">{t("myLibrary.title")}</h1>
-      <p className="mt-1 text-text-secondary dark:text-text-secondary-dark">{t("myLibrary.subtitle")}</p>
+      <div className="mb-2 flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold">{t("myLibrary.title")}</h1>
+          <p className="mt-1 text-text-secondary dark:text-text-secondary-dark">{t("myLibrary.subtitle")}</p>
+        </div>
+        <button
+          onClick={() => setShowUpload((v) => !v)}
+          className="flex items-center gap-2 rounded-md bg-accent px-3 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90"
+        >
+          <Upload size={16} />
+          {t("myLibrary.upload")}
+        </button>
+      </div>
+
+      {showUpload && (
+        <form
+          onSubmit={upload}
+          className="mb-6 mt-4 flex flex-wrap items-end gap-3 rounded-xl border border-border bg-surface p-5 dark:border-border-dark dark:bg-surface-dark"
+        >
+          <div>
+            <label className="mb-1 block text-sm font-medium">{t("myLibrary.uploadTitle")}</label>
+            <input
+              required
+              value={newTitle}
+              onChange={(e) => setNewTitle(e.target.value)}
+              className="w-56 rounded-md border border-border bg-transparent px-3 py-2 text-sm outline-none focus:border-accent dark:border-border-dark"
+            />
+          </div>
+          {user?.role === "admin" && (
+            <div>
+              <label className="mb-1 block text-sm font-medium">{t("myLibrary.uploadOrganization")}</label>
+              <select
+                required
+                value={newOrgId}
+                onChange={(e) => setNewOrgId(e.target.value)}
+                className="w-40 rounded-md border border-border bg-transparent px-2 py-2 text-sm dark:border-border-dark"
+              >
+                <option value="">—</option>
+                {organizations.map((o) => (
+                  <option key={o.id} value={o.id}>
+                    {o.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+          <div>
+            <label className="mb-1 block text-sm font-medium">{t("myLibrary.uploadFile")}</label>
+            <input
+              type="file"
+              accept=".glb,model/gltf-binary"
+              onChange={(e) => setNewFile(e.target.files?.[0] ?? null)}
+              className="text-sm"
+            />
+          </div>
+          <button
+            type="submit"
+            disabled={uploading}
+            className="rounded-md bg-accent px-3 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+          >
+            {uploading ? t("myLibrary.uploading") : t("myLibrary.uploadSubmit")}
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowUpload(false)}
+            className="rounded-md border border-border px-3 py-2 text-sm font-medium text-text-secondary hover:bg-black/5 dark:border-border-dark dark:text-text-secondary-dark dark:hover:bg-white/5"
+          >
+            {t("admin.cancel")}
+          </button>
+          {uploadError && <p className="w-full text-sm text-red-500">{uploadError}</p>}
+        </form>
+      )}
 
       <div className="mt-6">
-        <ArtifactGrid artifacts={mine} emptyLabel={t("myLibrary.empty")} />
+        <ArtifactGrid artifacts={mine} emptyLabel={t("myLibrary.empty")} actor={actor} actions={actions} />
       </div>
     </div>
   );

@@ -10,7 +10,7 @@ APP_VERSION = "0.1.0"
 [[d1_databases]]
 binding = "DB"
 database_name = "vestoxr-db"
-database_id = "REPLACE_WITH_REAL_D1_DATABASE_ID"
+database_id = "ed63c3e6-b4b3-4e6c-ad56-8f1e8580c1a6"
 migrations_dir = "migrations"
 
 [[r2_buckets]]

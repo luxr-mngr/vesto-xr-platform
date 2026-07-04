@@ -5,6 +5,7 @@ import { API_BASE, apiFetch, apiUploadFile } from "../lib/api.js";
 import { ArtifactGrid, type ArtifactActions } from "../components/ArtifactGrid.js";
 import { useAuth } from "../context/AuthContext.js";
 import { useI18n } from "../lib/i18n.js";
+import { MODEL_EXPOSURE } from "../lib/modelViewer.js";
 
 /**
  * Renders a GLB off-screen in a throwaway <model-viewer> and captures a PNG
@@ -29,7 +30,7 @@ function captureThumbnail(file: File): Promise<Blob | null> {
     viewer.setAttribute("loading", "eager");
     // Matches ArtifactDetail's live viewer exposure so a captured thumbnail
     // doesn't look brighter/more blown-out than the model actually renders.
-    viewer.setAttribute("exposure", "0.75");
+    viewer.setAttribute("exposure", MODEL_EXPOSURE);
     viewer.style.cssText = "position:fixed;top:-9999px;left:-9999px;width:512px;height:512px;";
     const objectUrl = URL.createObjectURL(file);
     viewer.src = objectUrl;

@@ -5,9 +5,7 @@ import { can, type Artifact, type CustomFieldDefinition, type Organization, type
 import { API_BASE, apiFetch } from "../lib/api.js";
 import { useAuth } from "../context/AuthContext.js";
 import { useI18n } from "../lib/i18n.js";
-
-/** Reduced from model-viewer's default of 1 — the default reads as blown-out/overexposed on pale scans. */
-const MODEL_EXPOSURE = "0.75";
+import { MODEL_EXPOSURE } from "../lib/modelViewer.js";
 
 const STATUS_KEY: Record<Artifact["status"], "artifactGrid.statusDraft" | "artifactGrid.statusPendingReview" | "artifactGrid.statusPublished" | "artifactGrid.statusRejected"> = {
   draft: "artifactGrid.statusDraft",

@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.js";
 import { ApiError, apiFetch } from "../lib/api.js";
 import { useI18n } from "../lib/i18n.js";
+import { APP_VERSION } from "../lib/version.js";
 import luxrLogo from "../assets/luxr-logo.svg";
 
 export function Login() {
@@ -124,6 +125,7 @@ export function Login() {
           <span className="text-xs">{t("login.poweredBy")}</span>
           <img src={luxrLogo} alt="LuXR" className="h-3.5 w-auto opacity-80" />
         </div>
+        <p className="mt-1 text-center text-xs text-text-secondary dark:text-text-secondary-dark">v{APP_VERSION}</p>
       </div>
     </div>
   );

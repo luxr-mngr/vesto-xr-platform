@@ -84,7 +84,7 @@ const translations = {
     makePublic: { es: "Hacer público", en: "Make public" },
     makePrivate: { es: "Hacer privado", en: "Make private" },
     delete: { es: "Eliminar", en: "Delete" },
-    regenerateThumbnail: { es: "Generar vista previa", en: "Generate thumbnail" },
+    regenerateThumbnail: { es: "Regenerar vista previa", en: "Regenerate thumbnail" },
   },
   artifactDetail: {
     back: { es: "Volver", en: "Back" },

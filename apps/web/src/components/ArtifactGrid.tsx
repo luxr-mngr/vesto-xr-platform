@@ -97,7 +97,7 @@ export function ArtifactGrid({
                   <Pencil size={14} />
                 </button>
               )}
-              {artifact.glbR2Key && !artifact.thumbnailR2Key && can(actor, "artifact.editMetadata", { artifact }) && (
+              {artifact.glbR2Key && can(actor, "artifact.editMetadata", { artifact }) && (
                 <button
                   onClick={() => actions.onRegenerateThumbnail(artifact)}
                   title={t("artifactGrid.regenerateThumbnail")}

@@ -5,7 +5,7 @@ import { can, type Artifact, type CustomFieldDefinition, type Organization, type
 import { API_BASE, apiFetch } from "../lib/api.js";
 import { useAuth } from "../context/AuthContext.js";
 import { useI18n } from "../lib/i18n.js";
-import { fixEmissiveOnlyMaterials, MODEL_EXPOSURE } from "../lib/modelViewer.js";
+import { fixEmissiveOnlyMaterialsInGlb, MODEL_EXPOSURE } from "../lib/modelViewer.js";
 
 const STATUS_KEY: Record<Artifact["status"], "artifactGrid.statusDraft" | "artifactGrid.statusPendingReview" | "artifactGrid.statusPublished" | "artifactGrid.statusRejected"> = {
   draft: "artifactGrid.statusDraft",
@@ -46,10 +46,11 @@ export function ArtifactDetail() {
     let cancelled = false;
     let objectUrl: string | null = null;
     fetch(`${API_BASE}/artifacts/${artifact.id}/glb`, { credentials: "include" })
-      .then((res) => (res.ok ? res.blob() : Promise.reject(res)))
-      .then((blob) => {
+      .then((res) => (res.ok ? res.arrayBuffer() : Promise.reject(res)))
+      .then((buffer) => {
         if (cancelled) return;
-        objectUrl = URL.createObjectURL(blob);
+        const fixed = fixEmissiveOnlyMaterialsInGlb(buffer);
+        objectUrl = URL.createObjectURL(new Blob([fixed], { type: "model/gltf-binary" }));
         setModelObjectUrl(objectUrl);
       })
       .catch(() => {
@@ -122,7 +123,6 @@ export function ArtifactDetail() {
                 camera-controls
                 auto-rotate
                 exposure={MODEL_EXPOSURE}
-                onLoad={(e) => fixEmissiveOnlyMaterials(e.currentTarget as unknown as { model?: { materials: any[] } })}
                 style={{ width: "100%", height: "100%" }}
               />
             ) : artifact.glbR2Key ? (

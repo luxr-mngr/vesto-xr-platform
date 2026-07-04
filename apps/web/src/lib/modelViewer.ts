@@ -4,50 +4,75 @@
  */
 export const MODEL_EXPOSURE = "1";
 
-interface SceneGraphTextureInfo {
-  texture: unknown;
-  setTexture(texture: unknown): Promise<void>;
-}
-
-interface SceneGraphMaterial {
-  emissiveTexture?: SceneGraphTextureInfo;
-  pbrMetallicRoughness: {
-    baseColorTexture?: SceneGraphTextureInfo;
-    setBaseColorFactor(rgba: [number, number, number, number]): void;
-  };
-  setEmissiveFactor(rgb: [number, number, number]): void;
-}
+const GLB_MAGIC = 0x46546c67;
+const JSON_CHUNK_TYPE = 0x4e4f534a;
 
 /**
  * Sketchfab's GLB exporter commonly bakes an artifact's actual color photo
- * into the material's *emissive* slot instead of its base-color slot — likely
- * to bypass their own viewer's PBR relighting — while leaving base color at
- * its white default. A standards-compliant PBR renderer like model-viewer
- * takes that literally: white-lit geometry plus the photo glowing on top,
- * which reads as a washed-out/overexposed render no matter the exposure
- * setting, because the real texture is simply in the wrong slot.
+ * into a material's *emissive* slot instead of its base-color slot — likely
+ * to bypass their own viewer's PBR relighting — leaving base color at its
+ * white default. A standards-compliant PBR renderer like model-viewer takes
+ * that literally: white-lit geometry plus the photo glowing on top, which
+ * reads as a washed-out/overexposed render no matter the exposure setting,
+ * because the real texture is simply in the wrong slot.
  *
- * This moves any emissive-only texture into the base-color slot (and zeroes
- * the emissive factor so it isn't double-counted) using model-viewer's scene
- * graph API. Safe to run on any model — it's a no-op if a material already
- * has its own base-color texture.
+ * This rewrites the GLB's JSON chunk directly — moving any emissive-only
+ * texture into the base-color slot and zeroing the emissive factor — rather
+ * than mutating model-viewer's in-memory scene graph after load, since that
+ * relies on assumptions about a third-party API surface that turned out not
+ * to hold. A raw binary rewrite can be verified byte-for-byte independent of
+ * any particular viewer's runtime behavior. Returns the input unchanged if
+ * it isn't a valid GLB or no material needs fixing.
  */
-export async function fixEmissiveOnlyMaterials(viewer: {
-  model?: { materials: SceneGraphMaterial[] };
-}): Promise<void> {
-  try {
-    for (const material of viewer.model?.materials ?? []) {
-      const emissiveTexture = material.emissiveTexture?.texture;
-      const hasBaseColorTexture = !!material.pbrMetallicRoughness.baseColorTexture?.texture;
-      if (!emissiveTexture || hasBaseColorTexture) continue;
+export function fixEmissiveOnlyMaterialsInGlb(glb: ArrayBuffer): ArrayBuffer {
+  const view = new DataView(glb);
+  if (glb.byteLength < 20 || view.getUint32(0, true) !== GLB_MAGIC) return glb;
 
-      await material.pbrMetallicRoughness.baseColorTexture?.setTexture(emissiveTexture);
-      material.pbrMetallicRoughness.setBaseColorFactor([1, 1, 1, 1]);
-      await material.emissiveTexture?.setTexture(null);
-      material.setEmissiveFactor([0, 0, 0]);
+  const version = view.getUint32(4, true);
+  const jsonChunkLength = view.getUint32(12, true);
+  const jsonChunkType = view.getUint32(16, true);
+  if (jsonChunkType !== JSON_CHUNK_TYPE) return glb;
+
+  const jsonStart = 20;
+  const jsonText = new TextDecoder().decode(new Uint8Array(glb, jsonStart, jsonChunkLength));
+  const json = JSON.parse(jsonText);
+
+  let changed = false;
+  for (const material of json.materials ?? []) {
+    const hasBaseColorTexture = !!material.pbrMetallicRoughness?.baseColorTexture;
+    const emissiveTexture = material.emissiveTexture;
+    if (!hasBaseColorTexture && emissiveTexture) {
+      material.pbrMetallicRoughness = material.pbrMetallicRoughness ?? {};
+      material.pbrMetallicRoughness.baseColorTexture = { ...emissiveTexture };
+      delete material.emissiveTexture;
+      material.emissiveFactor = [0, 0, 0];
+      changed = true;
     }
-  } catch {
-    // Best-effort: if model-viewer's scene-graph API shape ever changes,
-    // fall back to rendering the material as authored rather than throwing.
   }
+  if (!changed) return glb;
+
+  let newJsonBytes = new TextEncoder().encode(JSON.stringify(json));
+  const pad = (4 - (newJsonBytes.length % 4)) % 4;
+  if (pad > 0) {
+    const padded = new Uint8Array(newJsonBytes.length + pad);
+    padded.set(newJsonBytes);
+    padded.fill(0x20, newJsonBytes.length);
+    newJsonBytes = padded;
+  }
+
+  const restStart = jsonStart + jsonChunkLength;
+  const rest = new Uint8Array(glb, restStart);
+  const newTotalLength = jsonStart + newJsonBytes.length + rest.length;
+
+  const out = new ArrayBuffer(newTotalLength);
+  const outView = new DataView(out);
+  outView.setUint32(0, GLB_MAGIC, true);
+  outView.setUint32(4, version, true);
+  outView.setUint32(8, newTotalLength, true);
+  outView.setUint32(12, newJsonBytes.length, true);
+  outView.setUint32(16, JSON_CHUNK_TYPE, true);
+  new Uint8Array(out, jsonStart, newJsonBytes.length).set(newJsonBytes);
+  new Uint8Array(out, jsonStart + newJsonBytes.length, rest.length).set(rest);
+
+  return out;
 }

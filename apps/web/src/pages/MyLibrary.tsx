@@ -5,7 +5,7 @@ import { API_BASE, apiFetch, apiUploadFile } from "../lib/api.js";
 import { ArtifactGrid, type ArtifactActions } from "../components/ArtifactGrid.js";
 import { useAuth } from "../context/AuthContext.js";
 import { useI18n } from "../lib/i18n.js";
-import { fixEmissiveOnlyMaterials, MODEL_EXPOSURE } from "../lib/modelViewer.js";
+import { fixEmissiveOnlyMaterialsInGlb, MODEL_EXPOSURE } from "../lib/modelViewer.js";
 
 /**
  * Renders a GLB off-screen in a throwaway <model-viewer> and captures a PNG
@@ -19,13 +19,15 @@ import { fixEmissiveOnlyMaterials, MODEL_EXPOSURE } from "../lib/modelViewer.js"
  * deliberately positioned off-screen — without overriding that, "load" never
  * fires and every capture silently times out after 15s.
  */
-function captureThumbnail(file: File): Promise<Blob | null> {
+async function captureThumbnail(file: File): Promise<Blob | null> {
+  const fixed = fixEmissiveOnlyMaterialsInGlb(await file.arrayBuffer());
+  const fixedBlob = new Blob([fixed], { type: "model/gltf-binary" });
+
   return new Promise((resolve) => {
     const viewer = document.createElement("model-viewer") as HTMLElement & {
       src: string;
       toBlob: (opts?: { idealAspect?: boolean }) => Promise<Blob>;
       dismissPoster: () => void;
-      model?: { materials: any[] };
     };
     viewer.setAttribute("reveal", "manual");
     viewer.setAttribute("loading", "eager");
@@ -33,7 +35,7 @@ function captureThumbnail(file: File): Promise<Blob | null> {
     // doesn't look brighter/more blown-out than the model actually renders.
     viewer.setAttribute("exposure", MODEL_EXPOSURE);
     viewer.style.cssText = "position:fixed;top:-9999px;left:-9999px;width:512px;height:512px;";
-    const objectUrl = URL.createObjectURL(file);
+    const objectUrl = URL.createObjectURL(fixedBlob);
     viewer.src = objectUrl;
     document.body.appendChild(viewer);
     viewer.dismissPoster();
@@ -52,10 +54,7 @@ function captureThumbnail(file: File): Promise<Blob | null> {
     viewer.addEventListener(
       "load",
       () => {
-        fixEmissiveOnlyMaterials(viewer)
-          .then(() => viewer.toBlob({ idealAspect: true }))
-          .then(finish)
-          .catch(() => finish(null));
+        viewer.toBlob({ idealAspect: true }).then(finish).catch(() => finish(null));
       },
       { once: true }
     );

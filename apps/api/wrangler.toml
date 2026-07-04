@@ -5,7 +5,8 @@ compatibility_date = "2026-07-01"
 # APP_VERSION drives the visible version indicator in the web UI's response
 # headers / health endpoint; bump it alongside apps/web's displayed version.
 [vars]
-APP_VERSION = "0.1.0"
+APP_VERSION = "0.2.0"
+ALLOWED_ORIGINS = "https://vestoxr-web.pages.dev,https://platform.luxrcore.com"
 
 [[d1_databases]]
 binding = "DB"

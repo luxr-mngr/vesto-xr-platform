@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { cors } from "hono/cors";
 import type { ApiKey, User } from "@vestoxr/shared";
 import type { Env } from "./types/env.js";
 import type { Repo } from "./repo/types.js";
@@ -28,6 +29,17 @@ export interface HonoEnv {
  */
 export function createApp(overrideRepo?: Repo) {
   const app = new Hono<HonoEnv>();
+
+  app.use(
+    "*",
+    cors({
+      origin: (origin, c) => {
+        const allowed = c.env.ALLOWED_ORIGINS?.split(",").map((o: string) => o.trim()) ?? [];
+        return allowed.includes(origin) ? origin : "";
+      },
+      credentials: true,
+    })
+  );
 
   app.use("*", async (c, next) => {
     c.set("repo", overrideRepo ?? new D1Repo(c.env.DB));

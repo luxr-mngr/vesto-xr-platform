@@ -63,7 +63,11 @@ export function registerAuthRoutes(app: Hono<HonoEnv>) {
     setCookie(c, SESSION_COOKIE, token, {
       httpOnly: true,
       secure: true,
-      sameSite: "Lax",
+      // API and web app live on separate origins in production (Workers vs.
+      // Pages), so the cookie must be sent on cross-site fetches — "Lax"
+      // only sends it on top-level navigations, breaking /auth/me on reload
+      // and every POST/PUT once the two apps are split onto different domains.
+      sameSite: "None",
       path: "/",
       maxAge: SESSION_TTL_SECONDS,
     });
@@ -72,7 +76,7 @@ export function registerAuthRoutes(app: Hono<HonoEnv>) {
   });
 
   app.post("/auth/logout", async (c) => {
-    deleteCookie(c, SESSION_COOKIE, { path: "/" });
+    deleteCookie(c, SESSION_COOKIE, { path: "/", secure: true, sameSite: "None" });
     return c.json({ ok: true });
   });
 

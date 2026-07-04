@@ -225,7 +225,7 @@ Notes:
    - a **role** (Admin / Curator / Assistant), and
    - an **organization** (not required for Admin).
    Setting these and flipping the toggle moves `status → 'active'`.
-4. **Login** — active users authenticate via `POST /api/v1/auth/login`; on success the Worker issues a signed JWT set as an httpOnly, Secure, SameSite=Lax cookie. Session length: 7 days, refreshed on activity.
+4. **Login** — active users authenticate via `POST /api/v1/auth/login`; on success the Worker issues a signed JWT set as an httpOnly, Secure, SameSite=None cookie (the web app and API are deployed on separate origins — Pages vs. Workers — so the cookie must be sendable cross-site; `SameSite=Lax` would silently drop it on every `fetch` other than a top-level navigation). Session length: 7 days, refreshed on activity.
 5. **Disable** — Admin can flip status back to `'disabled'` at any time (same toggle), immediately invalidating future requests (checked server-side per request, not just at login).
 6. **Password reset** — standard email-token flow (deferred to phase 2 if email sending isn't wired up yet; phase 1 can support Admin-triggered manual reset).
 

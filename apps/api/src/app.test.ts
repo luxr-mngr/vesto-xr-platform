@@ -451,6 +451,130 @@ describe("apps/api HTTP routes", () => {
     expect(visible.some((a: { id: string }) => a.id === artifact.id)).toBe(true);
   });
 
+  it("lets the signed download token be redeemed with no further credential", async () => {
+    const curator = await registerAndActivate("dl-curator@example.com", "curator", "org-a");
+    const createRes = await app.request(
+      "/artifacts",
+      { method: "POST", headers: { "content-type": "application/json", cookie: curator.cookie }, body: JSON.stringify({ title: "Downloadable" }) },
+      env
+    );
+    const artifact = await json<{ id: string }>(createRes);
+    await app.request(`/artifacts/${artifact.id}/glb`, { method: "PUT", headers: { cookie: curator.cookie }, body: new Uint8Array([9, 9, 9]) }, env);
+
+    const keyRes = await app.request(
+      "/organizations/org-a/api-keys",
+      { method: "POST", headers: { "content-type": "application/json", cookie: curator.cookie } },
+      env
+    );
+    const rawKey = (await json<{ key: string }>(keyRes)).key;
+
+    const downloadRes = await app.request(
+      `/v1/artifacts/${artifact.id}/download`,
+      { headers: { authorization: `Bearer ${rawKey}` } },
+      env
+    );
+    expect(downloadRes.status).toBe(200);
+    const { url } = await json<{ url: string }>(downloadRes);
+
+    // The token itself is the credential — no Authorization header at all here.
+    const bytesRes = await app.request(new URL(url).pathname, {}, env);
+    expect(bytesRes.status).toBe(200);
+    expect(new Uint8Array(await bytesRes.arrayBuffer())).toEqual(new Uint8Array([9, 9, 9]));
+  });
+
+  it("lets any active user log in for a Store-only bearer token, regardless of role", async () => {
+    await registerAndActivate("assist-store@example.com", "assistant", "org-a");
+
+    const loginRes = await app.request(
+      "/v1/session/login",
+      { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email: "assist-store@example.com", password: "password123" }) },
+      env
+    );
+    expect(loginRes.status).toBe(200);
+    const body = await json<{ token: string; user: { role: string } }>(loginRes);
+    expect(body.user.role).toBe("assistant");
+    expect(typeof body.token).toBe("string");
+  });
+
+  it("rejects a Store login for the wrong password or a pending/disabled account", async () => {
+    const wrongPassword = await app.request(
+      "/v1/session/login",
+      { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email: "nope@example.com", password: "password123" }) },
+      env
+    );
+    expect(wrongPassword.status).toBe(401);
+
+    await app.request(
+      "/auth/register",
+      { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email: "pending-store@example.com", password: "password123" }) },
+      env
+    );
+    const pendingRes = await app.request(
+      "/v1/session/login",
+      { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email: "pending-store@example.com", password: "password123" }) },
+      env
+    );
+    expect(pendingRes.status).toBe(403);
+  });
+
+  it("Store endpoints show only published+public artifacts, never a user's own private drafts, and require a valid token", async () => {
+    const curator = await registerAndActivate("store-curator@example.com", "curator", "org-a");
+    const assistant = await registerAndActivate("store-assistant@example.com", "assistant", "org-b");
+
+    const draftRes = await app.request(
+      "/artifacts",
+      { method: "POST", headers: { "content-type": "application/json", cookie: curator.cookie }, body: JSON.stringify({ title: "Still a draft" }) },
+      env
+    );
+    const draft = await json<{ id: string }>(draftRes);
+
+    const publishedRes = await app.request(
+      "/artifacts",
+      { method: "POST", headers: { "content-type": "application/json", cookie: curator.cookie }, body: JSON.stringify({ title: "Store piece" }) },
+      env
+    );
+    const published = await json<{ id: string }>(publishedRes);
+    await app.request(`/artifacts/${published.id}/glb`, { method: "PUT", headers: { cookie: curator.cookie }, body: new Uint8Array([5, 5, 5]) }, env);
+    await app.request(`/artifacts/${published.id}/submit`, { method: "POST", headers: { cookie: curator.cookie } }, env);
+    await app.request(`/artifacts/${published.id}/approve`, { method: "POST", headers: { cookie: curator.cookie } }, env);
+    await app.request(
+      `/artifacts/${published.id}/visibility`,
+      { method: "POST", headers: { "content-type": "application/json", cookie: curator.cookie }, body: JSON.stringify({ visibility: "public" }) },
+      env
+    );
+
+    // No token at all.
+    const noTokenRes = await app.request("/v1/store/artifacts", {}, env);
+    expect(noTokenRes.status).toBe(401);
+
+    // An assistant from a completely different org can still see the Store...
+    const loginRes = await app.request(
+      "/v1/session/login",
+      { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email: "store-assistant@example.com", password: "password123" }) },
+      env
+    );
+    const { token } = await json<{ token: string }>(loginRes);
+
+    const listRes = await app.request("/v1/store/artifacts", { headers: { authorization: `Bearer ${token}` } }, env);
+    expect(listRes.status).toBe(200);
+    const list = await json<Array<{ id: string }>>(listRes);
+    expect(list.some((a) => a.id === published.id)).toBe(true);
+    // ...but never the other org's still-draft artifact.
+    expect(list.some((a) => a.id === draft.id)).toBe(false);
+
+    const draftDetailRes = await app.request(`/v1/store/artifacts/${draft.id}`, { headers: { authorization: `Bearer ${token}` } }, env);
+    expect(draftDetailRes.status).toBe(404);
+
+    // Full end-to-end download: get the signed URL via the Store token, then
+    // redeem it with no further credential.
+    const downloadRes = await app.request(`/v1/store/artifacts/${published.id}/download`, { headers: { authorization: `Bearer ${token}` } }, env);
+    expect(downloadRes.status).toBe(200);
+    const { url } = await json<{ url: string }>(downloadRes);
+    const bytesRes = await app.request(new URL(url).pathname, {}, env);
+    expect(bytesRes.status).toBe(200);
+    expect(new Uint8Array(await bytesRes.arrayBuffer())).toEqual(new Uint8Array([5, 5, 5]));
+  });
+
   it("validates and persists custom-field values, rejecting unknown keys and cross-org edits", async () => {
     const admin = await registerAndActivate("cf-admin@example.com", "admin", null);
     const curator = await registerAndActivate("cf-curator@example.com", "curator", "org-a");

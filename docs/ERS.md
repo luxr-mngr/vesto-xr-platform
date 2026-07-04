@@ -295,6 +295,8 @@ r2://vestoxr-assets/
 
 ## 11. Public/External API (for Unreal Engine & integrations)
 
+See [UNREAL_INTEGRATION.md](UNREAL_INTEGRATION.md) for the client-side consumption flow (auth, the two-step download, a worked C++ example) — this section is the contract; that doc is how to actually call it from an Unreal project.
+
 Base URL: `https://api.vestoxr.com/api/v1/`
 
 **Auth:** Every external request sends `Authorization: Bearer <org_api_key>`. Keys are created/revoked by a Curator/Admin in the org's settings screen, shown once in full, stored as a hash server-side. Each key is scoped to:
@@ -397,7 +399,7 @@ Both dark and light modes are already proven brand variants (confirmed via the p
 
 **Phase 3 — Polish & Unreal Integration Hardening**
 - Search/filter facets on Store (culture, period, material, tags, org) — **not yet implemented**.
-- Unreal Engine sample plugin/README demonstrating auth + list + download flow — **not yet implemented**.
+- Unreal Engine sample plugin/README demonstrating auth + list + download flow — **README done** ([UNREAL_INTEGRATION.md](UNREAL_INTEGRATION.md): auth model, the two-step download flow, a worked C++ example); no packaged/tested sample plugin yet.
 - Rate limiting — **implemented** (§13). Thumbnail generation — **implemented** (§7, client-side capture). Password-reset emails — **not yet implemented**.
 
 ---

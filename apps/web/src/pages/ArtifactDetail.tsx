@@ -2,9 +2,12 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import { can, type Artifact, type CustomFieldDefinition, type Organization, type User } from "@vestoxr/shared";
-import { apiFetch } from "../lib/api.js";
+import { API_BASE, apiFetch } from "../lib/api.js";
 import { useAuth } from "../context/AuthContext.js";
 import { useI18n } from "../lib/i18n.js";
+
+/** Reduced from model-viewer's default of 1 — the default reads as blown-out/overexposed on pale scans. */
+const MODEL_EXPOSURE = "0.75";
 
 const STATUS_KEY: Record<Artifact["status"], "artifactGrid.statusDraft" | "artifactGrid.statusPendingReview" | "artifactGrid.statusPublished" | "artifactGrid.statusRejected"> = {
   draft: "artifactGrid.statusDraft",
@@ -23,6 +26,7 @@ export function ArtifactDetail() {
   const [values, setValues] = useState<Record<string, string>>({});
   const [savingFields, setSavingFields] = useState(false);
   const [fieldsMessage, setFieldsMessage] = useState<string | null>(null);
+  const [modelObjectUrl, setModelObjectUrl] = useState<string | null>(null);
 
   useEffect(() => {
     if (!id) return;
@@ -30,6 +34,34 @@ export function ArtifactDetail() {
       .then(setArtifact)
       .catch(() => setArtifact(null));
   }, [id]);
+
+  // <model-viewer>'s own internal fetch for `src` doesn't send credentials on
+  // a cross-origin request, so pointing it straight at the (session-cookie
+  // gated) GLB route would 401 in production where the API and web app are
+  // separate origins. Fetching the bytes ourselves (with credentials) and
+  // handing model-viewer a blob: URL sidesteps that entirely.
+  useEffect(() => {
+    if (!artifact?.glbR2Key) {
+      setModelObjectUrl(null);
+      return;
+    }
+    let cancelled = false;
+    let objectUrl: string | null = null;
+    fetch(`${API_BASE}/artifacts/${artifact.id}/glb`, { credentials: "include" })
+      .then((res) => (res.ok ? res.blob() : Promise.reject(res)))
+      .then((blob) => {
+        if (cancelled) return;
+        objectUrl = URL.createObjectURL(blob);
+        setModelObjectUrl(objectUrl);
+      })
+      .catch(() => {
+        if (!cancelled) setModelObjectUrl(null);
+      });
+    return () => {
+      cancelled = true;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [artifact?.id, artifact?.glbR2Key]);
 
   useEffect(() => {
     if (!artifact) return;
@@ -85,14 +117,19 @@ export function ArtifactDetail() {
       <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2">
           <div className="aspect-square overflow-hidden rounded-xl border border-border bg-bg-dark dark:border-border-dark">
-            {artifact.glbR2Key ? (
+            {modelObjectUrl ? (
               <model-viewer
-                src={`/api/artifacts/${artifact.id}/glb`}
+                src={modelObjectUrl}
                 alt={artifact.title}
                 camera-controls
                 auto-rotate
+                exposure={MODEL_EXPOSURE}
                 style={{ width: "100%", height: "100%" }}
               />
+            ) : artifact.glbR2Key ? (
+              <div className="flex h-full items-center justify-center text-center text-text-secondary-dark">
+                {t("artifactDetail.loadingPreview")}
+              </div>
             ) : (
               <div className="flex h-full items-center justify-center text-center text-text-secondary-dark">
                 {t("artifactDetail.noPreview")}

@@ -27,6 +27,9 @@ function captureThumbnail(file: File): Promise<Blob | null> {
     };
     viewer.setAttribute("reveal", "manual");
     viewer.setAttribute("loading", "eager");
+    // Matches ArtifactDetail's live viewer exposure so a captured thumbnail
+    // doesn't look brighter/more blown-out than the model actually renders.
+    viewer.setAttribute("exposure", "0.75");
     viewer.style.cssText = "position:fixed;top:-9999px;left:-9999px;width:512px;height:512px;";
     const objectUrl = URL.createObjectURL(file);
     viewer.src = objectUrl;

@@ -89,6 +89,7 @@ const translations = {
   artifactDetail: {
     back: { es: "Volver", en: "Back" },
     noPreview: { es: "Este artefacto aún no tiene un archivo GLB.", en: "This artifact has no GLB file yet." },
+    loadingPreview: { es: "Cargando vista previa…", en: "Loading preview…" },
     notFound: { es: "Artefacto no encontrado.", en: "Artifact not found." },
     status: { es: "Estado", en: "Status" },
     visibility: { es: "Visibilidad", en: "Visibility" },

@@ -70,7 +70,7 @@ export class MemoryRepo implements Repo {
     this.artifacts.delete(id);
   }
 
-  async createCustomFieldDefinition(def: CustomFieldDefinition) {
+  async createCustomFieldDefinition(def: CustomFieldDefinition, _createdBy: string) {
     this.customFieldDefinitions.set(def.key, def);
   }
   async listCustomFieldDefinitions() {

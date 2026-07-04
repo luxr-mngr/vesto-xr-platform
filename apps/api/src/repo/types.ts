@@ -30,7 +30,7 @@ export interface Repo {
   updateArtifact(id: string, patch: Partial<Artifact>): Promise<void>;
   deleteArtifact(id: string): Promise<void>;
 
-  createCustomFieldDefinition(def: CustomFieldDefinition): Promise<void>;
+  createCustomFieldDefinition(def: CustomFieldDefinition, createdBy: string): Promise<void>;
   listCustomFieldDefinitions(): Promise<CustomFieldDefinition[]>;
 
   getArtifactCustomFieldValues(artifactId: string): Promise<Record<string, string>>;

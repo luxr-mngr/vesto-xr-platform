@@ -28,7 +28,7 @@ export function registerCustomFieldRoutes(app: Hono<HonoEnv>) {
       label: body.label,
       fieldType: body.fieldType as CustomFieldDefinition["fieldType"],
     };
-    await c.get("repo").createCustomFieldDefinition(def);
+    await c.get("repo").createCustomFieldDefinition(def, actor.id);
     return c.json(def, 201);
   });
 }

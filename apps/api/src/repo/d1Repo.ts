@@ -214,13 +214,13 @@ export class D1Repo implements Repo {
     await this.db.prepare("DELETE FROM artifacts WHERE id = ?").bind(id).run();
   }
 
-  async createCustomFieldDefinition(def: CustomFieldDefinition) {
+  async createCustomFieldDefinition(def: CustomFieldDefinition, createdBy: string) {
     await this.db
       .prepare(
         `INSERT INTO custom_field_definitions (id, key, label, field_type, created_by)
          VALUES (?, ?, ?, ?, ?)`
       )
-      .bind(def.id, def.key, def.label, def.fieldType, def.id)
+      .bind(def.id, def.key, def.label, def.fieldType, createdBy)
       .run();
   }
 

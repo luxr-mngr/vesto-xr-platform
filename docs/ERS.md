@@ -241,13 +241,13 @@ Passwords are hashed with **scrypt/bcrypt** (Workers-compatible via `@node-rs/bc
     └───────────reject/edit────────────┘
 ```
 
-- **Upload:** Curator/Assistant selects a GLB (client validates extension + max size, e.g. 200 MB soft limit for v1) and fills in the fixed metadata form + any applicable custom fields. File is uploaded directly to R2 via a **pre-signed PUT URL** issued by the Worker (keeps large binaries off the Worker's request path).
+- **Upload:** Curator/Assistant selects a GLB (client validates extension + max size, 200 MB soft limit for v1 — enforced both client-side before upload and server-side via `Content-Length` on `PUT /artifacts/:id/glb`, see `MAX_GLB_SIZE_BYTES` in `packages/shared`) and fills in the fixed metadata form + any applicable custom fields. **Implemented as direct-through-Worker streaming**, not a presigned R2 PUT — see §10 note.
 - **Draft:** editable freely by its creator (and any Curator/Admin in the org).
 - **Submit for review:** status → `pending_review`; appears in the org's review queue for Curators/Admins.
 - **Publish:** Curator/Admin sets `visibility` (`private` = org-only "My Library"; `public` = also appears in the shared **Store**) and status → `published`.
-- **Reject:** returns to `draft` with a required reviewer comment (stored in `audit_log`).
+- **Reject:** returns to `draft` with a required reviewer comment (stored in `audit_log`). **Not yet implemented**: the reject route (`POST /artifacts/:id/reject`) transitions status only; there's no comment field/route yet.
 - **Delete:** soft-delete (status flag) recommended so R2 objects aren't orphaned without a cleanup pass; hard delete removes the R2 object + DB row (Admin/Curator only).
-- **Thumbnail:** generated client-side (render GLB off-screen, capture canvas, upload PNG) at upload time in v1 to avoid needing a server-side 3D renderer.
+- **Thumbnail (implemented):** generated client-side — a throwaway off-screen `<model-viewer>` renders the just-picked GLB, `toBlob()` captures a PNG once the "load" event fires, and the PNG is uploaded via `PUT /artifacts/:id/thumbnail` (same direct-through-Worker streaming pattern as the GLB itself, `apps/web/src/pages/MyLibrary.tsx`). No server-side 3D renderer involved.
 
 ---
 
@@ -289,7 +289,7 @@ r2://vestoxr-assets/
 - Bucket is **private** (no public bucket access); all reads go through the Worker.
 - **Web app uploads/downloads (implemented):** `PUT /api/artifacts/:id/glb` and `GET /api/artifacts/:id/glb` stream the GLB directly through the Worker's `BUCKET` (R2Bucket) binding, gated by the same `artifact.editMetadata` / `canView` checks as the rest of the artifact API — no presigned URL round trip. This is a deliberate simplification vs. the presigned-PUT sketch below: the app only has an R2Bucket binding (no S3-compatible access keys), and Workers can stream a request body straight into R2 without buffering it, so a direct-through-Worker PUT/GET is sufficient at this scale and keeps auth in one place.
 - **External API downloads (Unreal, not yet implemented):** still expected to use short-lived presigned R2 GET URLs (§11 `/artifacts/:id/download`) once that endpoint is built, since external clients shouldn't hold a session cookie.
-- Checksums (`checksum_sha256`) and presigned PUT for uploads remain open items — not implemented in the current scaffold.
+- Checksums (`checksum_sha256`) and presigned PUT for uploads remain open items — not implemented in the current scaffold. The 200MB soft size limit **is** enforced now (client-side before upload, and server-side via `Content-Length` on the PUT route).
 
 ---
 
@@ -306,7 +306,7 @@ Base URL: `https://api.vestoxr.com/api/v1/`
 | `GET` | `/artifacts` | List/search artifacts. Query params: `q`, `organization`, `culture_period`, `material`, `tags`, `page`, `page_size`. Returns Store + own-org results depending on key scope. |
 | `GET` | `/artifacts/:id` | Full metadata (fixed + custom fields) for one artifact. |
 | `GET` | `/artifacts/:id/download` | Returns `{ url, expires_at }` — a short-lived signed R2 GET URL for the `.glb` binary. Unreal plugin fetches this, then downloads the file directly from R2. |
-| `GET` | `/artifacts/:id/thumbnail` | Same pattern, for the PNG preview. |
+| `GET` | `/artifacts/:id/thumbnail` | **Implemented.** Same pattern, for the PNG preview. |
 | `GET` | `/organizations/:slug` | Public org profile (name only, no user data). |
 
 Internal (session-cookie authenticated) endpoints for the admin app mirror CRUD needs: `/auth/*`, `/users/*`, `/organizations/*`, `/artifacts/*` (POST/PATCH/DELETE + `/submit`, `/approve`, `/reject`), `/custom-fields/*`, `/api-keys/*`.
@@ -366,7 +366,7 @@ Both dark and light modes are already proven brand variants (confirmed via the p
 - Role and organization checks enforced **server-side on every request** (never trust client-sent role/org).
 - R2 bucket has no public access; all file delivery is via time-limited signed URLs.
 - API keys stored as salted hashes; raw key shown exactly once at creation.
-- Rate limiting on `/auth/login` and the public API (Cloudflare Workers rate limiting or a D1-backed counter) to deter brute force / scraping.
+- **Rate limiting (implemented):** a fixed-window D1-backed counter (`rate_limit_hits` table, `apps/api/src/middleware/rateLimit.ts`) gates `POST /auth/login` (10 req/min per source IP) and the whole public `/v1/*` API (120 req/min per API key) to deter brute force / scraping.
 - Audit log for account approvals, role changes, publishes, key creation/revocation.
 - CORS locked to the known frontend origin(s) + explicitly open for the download endpoints Unreal needs (or Unreal calls the API directly, not from a browser context, so CORS is largely a non-issue there).
 
@@ -391,14 +391,14 @@ Both dark and light modes are already proven brand variants (confirmed via the p
 - Public API v1 (list, detail, download) + per-org API key management.
 
 **Phase 2 — Review Workflow & Extensibility**
-- Full draft → pending_review → published/rejected pipeline with reviewer comments.
-- Custom field definitions (Admin) + custom field inputs on upload/edit.
-- Audit log UI, CSV import for bulk artifact/user creation (mirrors "Importar CSV" in the reference).
+- Draft → pending_review → published/rejected pipeline — implemented; reviewer comments on reject are **not yet implemented** (no comment field/route).
+- Custom field definitions (Admin) + custom field inputs on upload/edit — **implemented**: catalog CRUD plus a per-artifact values panel on Artifact Detail (`GET`/`PUT /artifacts/:id/custom-fields`), validated against the catalog via `validateCustomFieldValues`.
+- Audit log UI, CSV import for bulk artifact/user creation (mirrors "Importar CSV" in the reference) — **not yet implemented**.
 
 **Phase 3 — Polish & Unreal Integration Hardening**
-- Search/filter facets on Store (culture, period, material, tags, org).
-- Unreal Engine sample plugin/README demonstrating auth + list + download flow.
-- Rate limiting, thumbnail generation improvements, password-reset emails.
+- Search/filter facets on Store (culture, period, material, tags, org) — **not yet implemented**.
+- Unreal Engine sample plugin/README demonstrating auth + list + download flow — **not yet implemented**.
+- Rate limiting — **implemented** (§13). Thumbnail generation — **implemented** (§7, client-side capture). Password-reset emails — **not yet implemented**.
 
 ---
 

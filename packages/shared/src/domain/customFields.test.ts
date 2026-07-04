@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isKnownFieldKey, validateCustomFieldValue } from "./customFields.js";
+import { isKnownFieldKey, validateCustomFieldValue, validateCustomFieldValues } from "./customFields.js";
 import type { CustomFieldDefinition } from "../types.js";
 
 const textField: CustomFieldDefinition = {
@@ -69,5 +69,29 @@ describe("customFields.isKnownFieldKey", () => {
 
   it("rejects a key an org invented outside the catalog", () => {
     expect(isKnownFieldKey("made_up_field", catalog)).toBe(false);
+  });
+});
+
+describe("customFields.validateCustomFieldValues", () => {
+  const catalog = [textField, numberField, dateField, boolField];
+
+  it("accepts a full set of valid values", () => {
+    expect(
+      validateCustomFieldValues(catalog, { dynasty: "Ming", sherd_count: "12", on_loan: "false" }).ok
+    ).toBe(true);
+  });
+
+  it("rejects an unknown key even if the rest are valid", () => {
+    const result = validateCustomFieldValues(catalog, { dynasty: "Ming", made_up_field: "x" });
+    expect(result.ok).toBe(false);
+  });
+
+  it("rejects a known key with a type-invalid value", () => {
+    const result = validateCustomFieldValues(catalog, { sherd_count: "not-a-number" });
+    expect(result.ok).toBe(false);
+  });
+
+  it("accepts an empty value set (all custom fields optional)", () => {
+    expect(validateCustomFieldValues(catalog, {}).ok).toBe(true);
   });
 });

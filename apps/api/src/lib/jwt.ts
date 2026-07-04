@@ -2,8 +2,10 @@
 // no external dependency, works identically under Workers and Node/Vitest.
 
 export interface SessionClaims {
-  sub: string; // user id
+  sub: string; // user id, or artifact id for a download token
   exp: number; // unix seconds
+  /** Present only on short-lived external-download tokens (ERS §11); distinguishes the GLB from its thumbnail. */
+  kind?: "glb" | "thumbnail";
 }
 
 function base64url(bytes: ArrayBuffer | Uint8Array): string {

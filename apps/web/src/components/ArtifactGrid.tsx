@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { can, type Artifact, type User } from "@vestoxr/shared";
 import { Check, Eye, EyeOff, Pencil, Send, Trash2, X } from "lucide-react";
+import { API_BASE } from "../lib/api.js";
 import { useI18n } from "../lib/i18n.js";
 
 const STATUS_KEY: Record<Artifact["status"], "artifactGrid.statusDraft" | "artifactGrid.statusPendingReview" | "artifactGrid.statusPublished" | "artifactGrid.statusRejected"> = {
@@ -57,9 +58,17 @@ export function ArtifactGrid({
         >
           <Link
             to={`/artifacts/${artifact.id}`}
-            className="mb-3 flex aspect-square items-center justify-center rounded-lg bg-black/5 text-text-secondary hover:opacity-80 dark:bg-white/5 dark:text-text-secondary-dark"
+            className="mb-3 flex aspect-square items-center justify-center overflow-hidden rounded-lg bg-black/5 text-text-secondary hover:opacity-80 dark:bg-white/5 dark:text-text-secondary-dark"
           >
-            {t("artifactGrid.preview")}
+            {artifact.thumbnailR2Key ? (
+              <img
+                src={`${API_BASE}/artifacts/${artifact.id}/thumbnail`}
+                alt={artifact.title}
+                className="h-full w-full object-cover"
+              />
+            ) : (
+              t("artifactGrid.preview")
+            )}
           </Link>
           <Link to={`/artifacts/${artifact.id}`} className="truncate font-medium hover:text-accent">
             {artifact.title}

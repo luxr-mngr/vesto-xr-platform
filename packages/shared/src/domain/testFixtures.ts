@@ -23,6 +23,7 @@ export function makeArtifact(overrides: Partial<Artifact> = {}): Artifact {
     status: "draft",
     visibility: "private",
     glbR2Key: null,
+    thumbnailR2Key: null,
     ...overrides,
   };
 }

@@ -52,3 +52,23 @@ export function isKnownFieldKey(
 ): boolean {
   return catalog.some((def) => def.key === key);
 }
+
+/**
+ * Validates a full set of submitted custom-field values (artifact upload/edit form)
+ * against the current catalog: every key must be known, and its value must satisfy
+ * that key's declared type (ADR 0005).
+ */
+export function validateCustomFieldValues(
+  catalog: readonly CustomFieldDefinition[],
+  values: Record<string, string>
+): ValidationResult {
+  for (const [key, value] of Object.entries(values)) {
+    if (!isKnownFieldKey(key, catalog)) {
+      return { ok: false, error: `Unknown custom field key: ${key}.` };
+    }
+    const definition = catalog.find((def) => def.key === key)!;
+    const result = validateCustomFieldValue(definition, value);
+    if (!result.ok) return result;
+  }
+  return { ok: true };
+}

@@ -31,7 +31,12 @@ export interface Artifact {
   visibility: ArtifactVisibility;
   /** R2 object key for the GLB binary; null until the upload step completes (ERS §10). */
   glbR2Key: string | null;
+  /** R2 object key for the generated PNG preview; null until a thumbnail is captured (ERS §7). */
+  thumbnailR2Key: string | null;
 }
+
+/** Soft upload-size limit for GLB binaries (ERS §7) — enforced client- and server-side. */
+export const MAX_GLB_SIZE_BYTES = 200 * 1024 * 1024;
 
 export type CustomFieldType = "text" | "number" | "date" | "boolean";
 

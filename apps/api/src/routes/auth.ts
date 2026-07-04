@@ -3,10 +3,19 @@ import { setCookie, deleteCookie } from "hono/cookie";
 import { hashPassword, verifyPassword } from "../lib/password.js";
 import { signSession } from "../lib/jwt.js";
 import { SESSION_COOKIE } from "../middleware/auth.js";
+import { rateLimit } from "../middleware/rateLimit.js";
 import type { HonoEnv } from "../app.js";
 import type { StoredUser } from "../repo/types.js";
 
 const SESSION_TTL_SECONDS = 60 * 60 * 24 * 7; // 7 days (ERS §6)
+
+// 10 attempts/minute per source IP — deters credential-stuffing without
+// tripping up a legitimate user who mistypes their password a few times (ERS §13).
+const loginRateLimit = rateLimit({
+  limit: 10,
+  windowSeconds: 60,
+  bucketKey: (c) => `login:${c.req.header("cf-connecting-ip") ?? "unknown"}`,
+});
 
 export function registerAuthRoutes(app: Hono<HonoEnv>) {
   // Account starts 'pending' with no role/org — an Admin must activate it (ADR 0002).
@@ -37,7 +46,7 @@ export function registerAuthRoutes(app: Hono<HonoEnv>) {
     return c.json({ status: "pending", message: "Registered. Awaiting admin approval." }, 201);
   });
 
-  app.post("/auth/login", async (c) => {
+  app.post("/auth/login", loginRateLimit, async (c) => {
     const body = await c.req.json<{ email?: string; password?: string }>();
     const email = body.email?.trim().toLowerCase();
     const password = body.password;

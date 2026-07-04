@@ -450,4 +450,71 @@ describe("apps/api HTTP routes", () => {
     // org-a's own key: sees its own draft artifact...
     expect(visible.some((a: { id: string }) => a.id === artifact.id)).toBe(true);
   });
+
+  it("validates and persists custom-field values, rejecting unknown keys and cross-org edits", async () => {
+    const admin = await registerAndActivate("cf-admin@example.com", "admin", null);
+    const curator = await registerAndActivate("cf-curator@example.com", "curator", "org-a");
+    const outsider = await registerAndActivate("cf-outsider@example.com", "curator", "org-b");
+
+    await app.request(
+      "/custom-fields",
+      {
+        method: "POST",
+        headers: { "content-type": "application/json", cookie: admin.cookie },
+        body: JSON.stringify({ key: "dynasty", label: "Dynasty", fieldType: "text" }),
+      },
+      env
+    );
+
+    const createRes = await app.request(
+      "/artifacts",
+      { method: "POST", headers: { "content-type": "application/json", cookie: curator.cookie }, body: JSON.stringify({ title: "Jade Mask" }) },
+      env
+    );
+    const artifact = await json<{ id: string }>(createRes);
+
+    const unknownKeyRes = await app.request(
+      `/artifacts/${artifact.id}/custom-fields`,
+      { method: "PUT", headers: { "content-type": "application/json", cookie: curator.cookie }, body: JSON.stringify({ made_up: "x" }) },
+      env
+    );
+    expect(unknownKeyRes.status).toBe(400);
+
+    const outsiderRes = await app.request(
+      `/artifacts/${artifact.id}/custom-fields`,
+      { method: "PUT", headers: { "content-type": "application/json", cookie: outsider.cookie }, body: JSON.stringify({ dynasty: "Ming" }) },
+      env
+    );
+    expect(outsiderRes.status).toBe(403);
+
+    const okRes = await app.request(
+      `/artifacts/${artifact.id}/custom-fields`,
+      { method: "PUT", headers: { "content-type": "application/json", cookie: curator.cookie }, body: JSON.stringify({ dynasty: "Ming" }) },
+      env
+    );
+    expect(okRes.status).toBe(200);
+
+    const getRes = await app.request(`/artifacts/${artifact.id}/custom-fields`, { headers: { cookie: curator.cookie } }, env);
+    expect(await json(getRes)).toEqual({ dynasty: "Ming" });
+  });
+
+  it("rate-limits repeated login attempts from the same source", async () => {
+    await registerAndActivate("ratelimited@example.com", "curator", "org-a");
+
+    let lastStatus = 0;
+    for (let i = 0; i < 11; i++) {
+      const res = await app.request(
+        "/auth/login",
+        {
+          method: "POST",
+          headers: { "content-type": "application/json", "cf-connecting-ip": "203.0.113.7" },
+          body: JSON.stringify({ email: "ratelimited@example.com", password: "wrong-password" }),
+        },
+        env
+      );
+      lastStatus = res.status;
+    }
+
+    expect(lastStatus).toBe(429);
+  });
 });

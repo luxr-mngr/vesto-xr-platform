@@ -7,7 +7,9 @@ export class MemoryRepo implements Repo {
   organizations = new Map<string, Organization>();
   artifacts = new Map<string, Artifact>();
   customFieldDefinitions = new Map<string, CustomFieldDefinition>();
+  artifactCustomFieldValues = new Map<string, Record<string, string>>();
   apiKeys = new Map<string, ApiKey & { keyHash: string; label: string }>();
+  rateLimitHits = new Map<string, number>();
 
   async createUser(user: StoredUser) {
     this.users.set(user.id, user);
@@ -75,6 +77,13 @@ export class MemoryRepo implements Repo {
     return [...this.customFieldDefinitions.values()];
   }
 
+  async getArtifactCustomFieldValues(artifactId: string) {
+    return { ...(this.artifactCustomFieldValues.get(artifactId) ?? {}) };
+  }
+  async setArtifactCustomFieldValues(artifactId: string, values: Record<string, string>) {
+    this.artifactCustomFieldValues.set(artifactId, { ...values });
+  }
+
   async createApiKey(key: ApiKey & { keyHash: string; label: string }) {
     this.apiKeys.set(key.id, key);
   }
@@ -87,5 +96,12 @@ export class MemoryRepo implements Repo {
   async revokeApiKey(id: string) {
     const existing = this.apiKeys.get(id);
     if (existing) this.apiKeys.set(id, { ...existing, revokedAt: new Date().toISOString() });
+  }
+
+  async incrementRateLimitHit(bucketKey: string, windowStart: number) {
+    const mapKey = `${bucketKey}:${windowStart}`;
+    const next = (this.rateLimitHits.get(mapKey) ?? 0) + 1;
+    this.rateLimitHits.set(mapKey, next);
+    return next;
   }
 }

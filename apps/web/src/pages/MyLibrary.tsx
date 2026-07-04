@@ -1,10 +1,49 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { isVisibleInMyLibrary, type Artifact, type Organization, type User } from "@vestoxr/shared";
+import { isVisibleInMyLibrary, MAX_GLB_SIZE_BYTES, type Artifact, type Organization, type User } from "@vestoxr/shared";
 import { Upload } from "lucide-react";
 import { apiFetch, apiUploadFile } from "../lib/api.js";
 import { ArtifactGrid, type ArtifactActions } from "../components/ArtifactGrid.js";
 import { useAuth } from "../context/AuthContext.js";
 import { useI18n } from "../lib/i18n.js";
+
+/**
+ * Renders the just-picked GLB off-screen in a throwaway <model-viewer> and
+ * captures a PNG snapshot once it's loaded (ERS §7) — avoids needing a
+ * server-side 3D renderer for thumbnails. Resolves null on load failure/timeout
+ * so a bad/slow model never blocks the artifact upload itself.
+ */
+function captureThumbnail(file: File): Promise<Blob | null> {
+  return new Promise((resolve) => {
+    const viewer = document.createElement("model-viewer") as HTMLElement & {
+      src: string;
+      toBlob: (opts?: { idealAspect?: boolean }) => Promise<Blob>;
+    };
+    viewer.style.cssText = "position:fixed;top:-9999px;left:-9999px;width:512px;height:512px;";
+    const objectUrl = URL.createObjectURL(file);
+    viewer.src = objectUrl;
+    document.body.appendChild(viewer);
+
+    let settled = false;
+    const finish = (result: Blob | null) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      URL.revokeObjectURL(objectUrl);
+      viewer.remove();
+      resolve(result);
+    };
+
+    const timeout = setTimeout(() => finish(null), 15000);
+    viewer.addEventListener(
+      "load",
+      () => {
+        viewer.toBlob({ idealAspect: true }).then(finish).catch(() => finish(null));
+      },
+      { once: true }
+    );
+    viewer.addEventListener("error", () => finish(null), { once: true });
+  });
+}
 
 /** My Library: the logged-in user's own organization, every status (ADR 0003). */
 export function MyLibrary() {
@@ -36,6 +75,10 @@ export function MyLibrary() {
   async function upload(e: FormEvent) {
     e.preventDefault();
     if (!newTitle.trim()) return;
+    if (newFile && newFile.size > MAX_GLB_SIZE_BYTES) {
+      setUploadError(t("myLibrary.fileTooLarge"));
+      return;
+    }
     setUploadError(null);
     setUploading(true);
     try {
@@ -43,7 +86,13 @@ export function MyLibrary() {
         method: "POST",
         body: JSON.stringify({ title: newTitle.trim(), organizationId: newOrgId || undefined }),
       });
-      if (newFile) await apiUploadFile(`/artifacts/${artifact.id}/glb`, newFile);
+      if (newFile) {
+        await apiUploadFile(`/artifacts/${artifact.id}/glb`, newFile);
+        const thumbnail = await captureThumbnail(newFile);
+        if (thumbnail) {
+          await apiUploadFile(`/artifacts/${artifact.id}/thumbnail`, new File([thumbnail], "thumbnail.png", { type: "image/png" }));
+        }
+      }
       setNewTitle("");
       setNewOrgId("");
       setNewFile(null);

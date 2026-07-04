@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
-import type { Artifact, Organization } from "@vestoxr/shared";
+import { can, type Artifact, type CustomFieldDefinition, type Organization, type User } from "@vestoxr/shared";
 import { apiFetch } from "../lib/api.js";
+import { useAuth } from "../context/AuthContext.js";
 import { useI18n } from "../lib/i18n.js";
 
 const STATUS_KEY: Record<Artifact["status"], "artifactGrid.statusDraft" | "artifactGrid.statusPendingReview" | "artifactGrid.statusPublished" | "artifactGrid.statusRejected"> = {
@@ -15,8 +16,13 @@ const STATUS_KEY: Record<Artifact["status"], "artifactGrid.statusDraft" | "artif
 export function ArtifactDetail() {
   const { id } = useParams<{ id: string }>();
   const { t } = useI18n();
+  const { user } = useAuth();
   const [artifact, setArtifact] = useState<Artifact | null | undefined>(undefined);
   const [organization, setOrganization] = useState<Organization | null>(null);
+  const [catalog, setCatalog] = useState<CustomFieldDefinition[]>([]);
+  const [values, setValues] = useState<Record<string, string>>({});
+  const [savingFields, setSavingFields] = useState(false);
+  const [fieldsMessage, setFieldsMessage] = useState<string | null>(null);
 
   useEffect(() => {
     if (!id) return;
@@ -30,7 +36,28 @@ export function ArtifactDetail() {
     apiFetch<Organization[]>("/organizations").then((orgs) => {
       setOrganization(orgs.find((o) => o.id === artifact.organizationId) ?? null);
     });
+    apiFetch<CustomFieldDefinition[]>("/custom-fields").then(setCatalog);
+    apiFetch<Record<string, string>>(`/artifacts/${artifact.id}/custom-fields`).then(setValues);
   }, [artifact]);
+
+  // `status: "active"` is safe to assume here: this page only renders behind
+  // ProtectedRoute, which already requires an authenticated (active) user.
+  const actor: User | null = user ? { ...user, status: "active" } : null;
+  const canEdit = !!(artifact && actor && can(actor, "artifact.editMetadata", { artifact }));
+
+  async function saveCustomFields() {
+    if (!artifact) return;
+    setSavingFields(true);
+    setFieldsMessage(null);
+    try {
+      await apiFetch(`/artifacts/${artifact.id}/custom-fields`, { method: "PUT", body: JSON.stringify(values) });
+      setFieldsMessage(t("artifactDetail.customFieldsSaved"));
+    } catch {
+      setFieldsMessage(t("artifactDetail.customFieldsError"));
+    } finally {
+      setSavingFields(false);
+    }
+  }
 
   if (artifact === undefined) return null;
 
@@ -91,6 +118,59 @@ export function ArtifactDetail() {
               <dd className="mt-0.5 font-medium">{organization?.name ?? artifact.organizationId}</dd>
             </div>
           </dl>
+
+          <div className="mt-6 border-t border-border pt-4 dark:border-border-dark">
+            <h2 className="text-sm font-semibold">{t("artifactDetail.customFieldsTitle")}</h2>
+            {catalog.length === 0 ? (
+              <p className="mt-2 text-sm text-text-secondary dark:text-text-secondary-dark">
+                {t("artifactDetail.customFieldsEmpty")}
+              </p>
+            ) : (
+              <div className="mt-3 space-y-3">
+                {catalog.map((field) => (
+                  <div key={field.key}>
+                    <label className="mb-1 block text-xs font-medium text-text-secondary dark:text-text-secondary-dark">
+                      {field.label}
+                    </label>
+                    {canEdit ? (
+                      field.fieldType === "boolean" ? (
+                        <select
+                          value={values[field.key] ?? ""}
+                          onChange={(e) => setValues((v) => ({ ...v, [field.key]: e.target.value }))}
+                          className="w-full rounded-md border border-border bg-transparent px-2 py-1.5 text-sm dark:border-border-dark"
+                        >
+                          <option value="">—</option>
+                          <option value="true">true</option>
+                          <option value="false">false</option>
+                        </select>
+                      ) : (
+                        <input
+                          type={field.fieldType === "number" ? "number" : field.fieldType === "date" ? "date" : "text"}
+                          value={values[field.key] ?? ""}
+                          onChange={(e) => setValues((v) => ({ ...v, [field.key]: e.target.value }))}
+                          className="w-full rounded-md border border-border bg-transparent px-2 py-1.5 text-sm outline-none focus:border-accent dark:border-border-dark"
+                        />
+                      )
+                    ) : (
+                      <p className="text-sm">{values[field.key] || "—"}</p>
+                    )}
+                  </div>
+                ))}
+                {canEdit && (
+                  <div className="flex items-center gap-2 pt-1">
+                    <button
+                      onClick={saveCustomFields}
+                      disabled={savingFields}
+                      className="rounded-md bg-accent px-3 py-1.5 text-xs font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+                    >
+                      {t("artifactDetail.customFieldsSave")}
+                    </button>
+                    {fieldsMessage && <span className="text-xs text-text-secondary dark:text-text-secondary-dark">{fieldsMessage}</span>}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>

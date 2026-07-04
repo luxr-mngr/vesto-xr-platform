@@ -18,6 +18,7 @@ interface ArtifactRow {
   status: Artifact["status"];
   visibility: Artifact["visibility"];
   glb_r2_key: string | null;
+  thumbnail_r2_key: string | null;
 }
 
 function userFromRow(row: UserRow): StoredUser {
@@ -40,6 +41,7 @@ function artifactFromRow(row: ArtifactRow): Artifact {
     status: row.status,
     visibility: row.visibility,
     glbR2Key: row.glb_r2_key,
+    thumbnailR2Key: row.thumbnail_r2_key,
   };
 }
 
@@ -165,7 +167,7 @@ export class D1Repo implements Repo {
   async getArtifactById(id: string) {
     const row = await this.db
       .prepare(
-        "SELECT id, organization_id, created_by, title, status, visibility, glb_r2_key FROM artifacts WHERE id = ?"
+        "SELECT id, organization_id, created_by, title, status, visibility, glb_r2_key, thumbnail_r2_key FROM artifacts WHERE id = ?"
       )
       .bind(id)
       .first<ArtifactRow>();
@@ -174,7 +176,7 @@ export class D1Repo implements Repo {
 
   async listArtifacts() {
     const { results } = await this.db
-      .prepare("SELECT id, organization_id, created_by, title, status, visibility, glb_r2_key FROM artifacts")
+      .prepare("SELECT id, organization_id, created_by, title, status, visibility, glb_r2_key, thumbnail_r2_key FROM artifacts")
       .all<ArtifactRow>();
     return results.map(artifactFromRow);
   }
@@ -197,6 +199,10 @@ export class D1Repo implements Repo {
     if (patch.glbR2Key !== undefined) {
       fields.push("glb_r2_key = ?");
       values.push(patch.glbR2Key);
+    }
+    if (patch.thumbnailR2Key !== undefined) {
+      fields.push("thumbnail_r2_key = ?");
+      values.push(patch.thumbnailR2Key);
     }
     if (fields.length === 0) return;
     fields.push("updated_at = datetime('now')");
@@ -223,6 +229,30 @@ export class D1Repo implements Repo {
       .prepare("SELECT id, key, label, field_type as fieldType FROM custom_field_definitions")
       .all<CustomFieldDefinition>();
     return results;
+  }
+
+  async getArtifactCustomFieldValues(artifactId: string) {
+    const { results } = await this.db
+      .prepare("SELECT field_key as fieldKey, field_value as fieldValue FROM artifact_custom_fields WHERE artifact_id = ?")
+      .bind(artifactId)
+      .all<{ fieldKey: string; fieldValue: string }>();
+    const values: Record<string, string> = {};
+    for (const row of results) values[row.fieldKey] = row.fieldValue;
+    return values;
+  }
+
+  async setArtifactCustomFieldValues(artifactId: string, values: Record<string, string>) {
+    const statements = [
+      this.db.prepare("DELETE FROM artifact_custom_fields WHERE artifact_id = ?").bind(artifactId),
+      ...Object.entries(values).map(([key, value]) =>
+        this.db
+          .prepare(
+            `INSERT INTO artifact_custom_fields (id, artifact_id, field_key, field_value) VALUES (?, ?, ?, ?)`
+          )
+          .bind(crypto.randomUUID(), artifactId, key, value)
+      ),
+    ];
+    await this.db.batch(statements);
   }
 
   async createApiKey(key: ApiKey & { keyHash: string; label: string }) {
@@ -252,5 +282,17 @@ export class D1Repo implements Repo {
 
   async revokeApiKey(id: string) {
     await this.db.prepare("UPDATE api_keys SET revoked_at = datetime('now') WHERE id = ?").bind(id).run();
+  }
+
+  async incrementRateLimitHit(bucketKey: string, windowStart: number) {
+    const row = await this.db
+      .prepare(
+        `INSERT INTO rate_limit_hits (bucket_key, window_start, count) VALUES (?, ?, 1)
+         ON CONFLICT (bucket_key, window_start) DO UPDATE SET count = count + 1
+         RETURNING count`
+      )
+      .bind(bucketKey, windowStart)
+      .first<{ count: number }>();
+    return row!.count;
   }
 }

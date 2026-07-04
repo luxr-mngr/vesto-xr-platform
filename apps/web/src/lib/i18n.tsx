@@ -63,6 +63,7 @@ const translations = {
     save: { es: "Guardar", en: "Save" },
     confirmDelete: { es: "¿Eliminar este artefacto? Esta acción no se puede deshacer.", en: "Delete this artifact? This cannot be undone." },
     confirmReject: { es: "Rechazar este artefacto (volverá a borrador)", en: "Reject this artifact (returns to draft)" },
+    fileTooLarge: { es: "El archivo GLB supera el límite de 200MB.", en: "The GLB file exceeds the 200MB limit." },
   },
   store: {
     title: { es: "Tienda", en: "Store" },
@@ -93,6 +94,11 @@ const translations = {
     visibilityPublic: { es: "Público", en: "Public" },
     visibilityPrivate: { es: "Privado", en: "Private" },
     organization: { es: "Organización", en: "Organization" },
+    customFieldsTitle: { es: "Campos personalizados", en: "Custom fields" },
+    customFieldsEmpty: { es: "No hay campos personalizados definidos.", en: "No custom fields defined." },
+    customFieldsSave: { es: "Guardar campos", en: "Save fields" },
+    customFieldsSaved: { es: "Guardado.", en: "Saved." },
+    customFieldsError: { es: "Ocurrió un error al guardar.", en: "Something went wrong saving." },
   },
   admin: {
     title: { es: "Administración de Usuarios", en: "User Management" },

@@ -154,6 +154,14 @@ const translations = {
     cancel: { es: "Cancelar", en: "Cancel" },
     empty: { es: "Aún no hay campos personalizados definidos.", en: "No custom fields defined yet." },
     genericError: { es: "Ocurrió un error.", en: "Something went wrong." },
+    actions: { es: "Acciones", en: "Actions" },
+    edit: { es: "Editar campo", en: "Edit field" },
+    save: { es: "Guardar", en: "Save" },
+    delete: { es: "Eliminar campo", en: "Delete field" },
+    confirmDelete: {
+      es: "¿Eliminar este campo personalizado? Esta acción no se puede deshacer.",
+      en: "Delete this custom field? This cannot be undone.",
+    },
   },
   apiKeys: {
     title: { es: "Claves API", en: "API Keys" },

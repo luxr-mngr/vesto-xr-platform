@@ -62,6 +62,8 @@ export type Action =
   | "user.delete"
   | "organization.create"
   | "customField.create"
+  | "customField.update"
+  | "customField.delete"
   | "artifact.upload"
   | "artifact.editMetadata"
   | "artifact.submitForReview"

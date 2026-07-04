@@ -27,6 +27,8 @@ export function can(actor: User, action: Action, context: RbacContext = {}): boo
     case "user.delete":
     case "organization.create":
     case "customField.create":
+    case "customField.update":
+    case "customField.delete":
       return actor.role === "admin";
 
     case "artifact.upload":

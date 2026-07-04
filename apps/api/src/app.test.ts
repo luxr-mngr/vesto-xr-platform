@@ -498,6 +498,71 @@ describe("apps/api HTTP routes", () => {
     expect(await json(getRes)).toEqual({ dynasty: "Ming" });
   });
 
+  it("supports the full custom-field definition lifecycle: rename, retire, and block-while-in-use", async () => {
+    const admin = await registerAndActivate("cf-crud-admin@example.com", "admin", null);
+    const curator = await registerAndActivate("cf-crud-curator@example.com", "curator", "org-a");
+
+    const createRes = await app.request(
+      "/custom-fields",
+      {
+        method: "POST",
+        headers: { "content-type": "application/json", cookie: admin.cookie },
+        body: JSON.stringify({ key: "material", label: "Material", fieldType: "text" }),
+      },
+      env
+    );
+    const field = await json<{ id: string; key: string }>(createRes);
+
+    // Non-admin cannot rename or retire.
+    const forbiddenPatch = await app.request(
+      `/custom-fields/${field.id}`,
+      { method: "PATCH", headers: { "content-type": "application/json", cookie: curator.cookie }, body: JSON.stringify({ label: "Nope" }) },
+      env
+    );
+    expect(forbiddenPatch.status).toBe(403);
+    const forbiddenDelete = await app.request(`/custom-fields/${field.id}`, { method: "DELETE", headers: { cookie: curator.cookie } }, env);
+    expect(forbiddenDelete.status).toBe(403);
+
+    // Admin renames the label.
+    const renameRes = await app.request(
+      `/custom-fields/${field.id}`,
+      { method: "PATCH", headers: { "content-type": "application/json", cookie: admin.cookie }, body: JSON.stringify({ label: "Raw Material" }) },
+      env
+    );
+    expect(renameRes.status).toBe(200);
+    const list = await json<Array<{ id: string; label: string }>>(await app.request("/custom-fields", { headers: { cookie: admin.cookie } }, env));
+    expect(list.find((f) => f.id === field.id)?.label).toBe("Raw Material");
+
+    // Put it to use on an artifact...
+    const artifactRes = await app.request(
+      "/artifacts",
+      { method: "POST", headers: { "content-type": "application/json", cookie: curator.cookie }, body: JSON.stringify({ title: "Basalt Axe" }) },
+      env
+    );
+    const artifact = await json<{ id: string }>(artifactRes);
+    const setValueRes = await app.request(
+      `/artifacts/${artifact.id}/custom-fields`,
+      { method: "PUT", headers: { "content-type": "application/json", cookie: curator.cookie }, body: JSON.stringify({ material: "Basalt" }) },
+      env
+    );
+    expect(setValueRes.status).toBe(200);
+
+    // ...deletion is now blocked while it's in use.
+    const blockedDelete = await app.request(`/custom-fields/${field.id}`, { method: "DELETE", headers: { cookie: admin.cookie } }, env);
+    expect(blockedDelete.status).toBe(409);
+
+    // Clear the value, then deletion succeeds.
+    await app.request(
+      `/artifacts/${artifact.id}/custom-fields`,
+      { method: "PUT", headers: { "content-type": "application/json", cookie: curator.cookie }, body: JSON.stringify({}) },
+      env
+    );
+    const deleteRes = await app.request(`/custom-fields/${field.id}`, { method: "DELETE", headers: { cookie: admin.cookie } }, env);
+    expect(deleteRes.status).toBe(200);
+    const listAfter = await json<Array<{ id: string }>>(await app.request("/custom-fields", { headers: { cookie: admin.cookie } }, env));
+    expect(listAfter.some((f) => f.id === field.id)).toBe(false);
+  });
+
   it("rate-limits repeated login attempts from the same source", async () => {
     await registerAndActivate("ratelimited@example.com", "curator", "org-a");
 

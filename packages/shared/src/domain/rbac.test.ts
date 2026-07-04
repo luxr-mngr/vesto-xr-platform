@@ -23,6 +23,8 @@ describe("rbac.can", () => {
       "user.delete",
       "organization.create",
       "customField.create",
+      "customField.update",
+      "customField.delete",
     ] as const) {
       it(`only admin can '${action}'`, () => {
         expect(can(makeUser({ role: "admin" }), action)).toBe(true);

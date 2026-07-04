@@ -31,11 +31,17 @@ export interface Repo {
   deleteArtifact(id: string): Promise<void>;
 
   createCustomFieldDefinition(def: CustomFieldDefinition, createdBy: string): Promise<void>;
+  getCustomFieldDefinitionById(id: string): Promise<CustomFieldDefinition | null>;
   listCustomFieldDefinitions(): Promise<CustomFieldDefinition[]>;
+  /** Renames the label and/or retypes the field (ERS §12 "add/rename/retire") — the `key` itself is immutable once created. */
+  updateCustomFieldDefinition(id: string, patch: Partial<Pick<CustomFieldDefinition, "label" | "fieldType">>): Promise<void>;
+  deleteCustomFieldDefinition(id: string): Promise<void>;
 
   getArtifactCustomFieldValues(artifactId: string): Promise<Record<string, string>>;
   /** Replaces the artifact's entire custom-field value set with `values` (ADR 0005). */
   setArtifactCustomFieldValues(artifactId: string, values: Record<string, string>): Promise<void>;
+  /** Number of artifacts currently holding a value for `fieldKey` — used to block deleting an in-use field definition. */
+  countArtifactCustomFieldUsage(fieldKey: string): Promise<number>;
 
   createApiKey(key: ApiKey & { keyHash: string; label: string }): Promise<void>;
   getApiKeyByHash(hash: string): Promise<ApiKey | null>;

@@ -224,11 +224,38 @@ export class D1Repo implements Repo {
       .run();
   }
 
+  async getCustomFieldDefinitionById(id: string) {
+    return this.db
+      .prepare("SELECT id, key, label, field_type as fieldType FROM custom_field_definitions WHERE id = ?")
+      .bind(id)
+      .first<CustomFieldDefinition>();
+  }
+
   async listCustomFieldDefinitions() {
     const { results } = await this.db
       .prepare("SELECT id, key, label, field_type as fieldType FROM custom_field_definitions")
       .all<CustomFieldDefinition>();
     return results;
+  }
+
+  async updateCustomFieldDefinition(id: string, patch: Partial<Pick<CustomFieldDefinition, "label" | "fieldType">>) {
+    const fields: string[] = [];
+    const values: unknown[] = [];
+    if (patch.label !== undefined) {
+      fields.push("label = ?");
+      values.push(patch.label);
+    }
+    if (patch.fieldType !== undefined) {
+      fields.push("field_type = ?");
+      values.push(patch.fieldType);
+    }
+    if (fields.length === 0) return;
+    values.push(id);
+    await this.db.prepare(`UPDATE custom_field_definitions SET ${fields.join(", ")} WHERE id = ?`).bind(...values).run();
+  }
+
+  async deleteCustomFieldDefinition(id: string) {
+    await this.db.prepare("DELETE FROM custom_field_definitions WHERE id = ?").bind(id).run();
   }
 
   async getArtifactCustomFieldValues(artifactId: string) {
@@ -253,6 +280,14 @@ export class D1Repo implements Repo {
       ),
     ];
     await this.db.batch(statements);
+  }
+
+  async countArtifactCustomFieldUsage(fieldKey: string) {
+    const row = await this.db
+      .prepare("SELECT COUNT(*) as count FROM artifact_custom_fields WHERE field_key = ?")
+      .bind(fieldKey)
+      .first<{ count: number }>();
+    return row?.count ?? 0;
   }
 
   async createApiKey(key: ApiKey & { keyHash: string; label: string }) {

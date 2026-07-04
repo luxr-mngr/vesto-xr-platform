@@ -73,8 +73,24 @@ export class MemoryRepo implements Repo {
   async createCustomFieldDefinition(def: CustomFieldDefinition, _createdBy: string) {
     this.customFieldDefinitions.set(def.key, def);
   }
+  async getCustomFieldDefinitionById(id: string) {
+    return [...this.customFieldDefinitions.values()].find((d) => d.id === id) ?? null;
+  }
   async listCustomFieldDefinitions() {
     return [...this.customFieldDefinitions.values()];
+  }
+  async updateCustomFieldDefinition(id: string, patch: Partial<Pick<CustomFieldDefinition, "label" | "fieldType">>) {
+    const existing = [...this.customFieldDefinitions.values()].find((d) => d.id === id);
+    if (!existing) return;
+    this.customFieldDefinitions.set(existing.key, {
+      ...existing,
+      label: patch.label ?? existing.label,
+      fieldType: patch.fieldType ?? existing.fieldType,
+    });
+  }
+  async deleteCustomFieldDefinition(id: string) {
+    const existing = [...this.customFieldDefinitions.values()].find((d) => d.id === id);
+    if (existing) this.customFieldDefinitions.delete(existing.key);
   }
 
   async getArtifactCustomFieldValues(artifactId: string) {
@@ -82,6 +98,13 @@ export class MemoryRepo implements Repo {
   }
   async setArtifactCustomFieldValues(artifactId: string, values: Record<string, string>) {
     this.artifactCustomFieldValues.set(artifactId, { ...values });
+  }
+  async countArtifactCustomFieldUsage(fieldKey: string) {
+    let count = 0;
+    for (const values of this.artifactCustomFieldValues.values()) {
+      if (fieldKey in values) count++;
+    }
+    return count;
   }
 
   async createApiKey(key: ApiKey & { keyHash: string; label: string }) {

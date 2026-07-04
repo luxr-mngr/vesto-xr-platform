@@ -1,5 +1,5 @@
-// Bump this alongside apps/web/package.json, apps/api/package.json, and
-// apps/api/wrangler.toml's APP_VERSION whenever a release is cut — it drives
-// the visible version indicator in the sidebar footer (see docs/adr for the
-// project's versioning approach).
-export const APP_VERSION = "0.2.0";
+// Generated from the root package.json's "version" field — do not edit this
+// value by hand. Bump the version there, then run `npm run version:sync` to
+// propagate it here (and to the other package.jsons + wrangler.toml). This
+// drives the visible version indicator in the sidebar footer.
+export const APP_VERSION = "0.3.0";

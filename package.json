@@ -1,7 +1,7 @@
 {
   "name": "vestoxr-manager",
   "private": true,
-  "version": "0.2.0",
+  "version": "0.3.0",
   "workspaces": [
     "apps/*",
     "packages/*"
@@ -10,7 +10,9 @@
     "test": "npm run test --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "dev:web": "npm run dev --workspace apps/web",
-    "dev:api": "npm run dev --workspace apps/api"
+    "dev:api": "npm run dev --workspace apps/api",
+    "version:sync": "node scripts/sync-version.mjs",
+    "version:check": "node scripts/sync-version.mjs --check"
   },
   "devDependencies": {
     "typescript": "^5.5.4"

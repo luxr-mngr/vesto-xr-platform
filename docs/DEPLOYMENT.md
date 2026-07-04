@@ -92,7 +92,7 @@ npm run deploy
 
 This runs `wrangler deploy`, which reads `wrangler.toml` and publishes the Worker along with its D1/R2 bindings. Wrangler prints the deployed Worker URL (`https://vestoxr-api.<your-subdomain>.workers.dev` by default).
 
-Bump `APP_VERSION` in `wrangler.toml` before a release if the change is user-visible (see CLAUDE.md's version-bump rule) — it's surfaced in the web UI's health/version indicator.
+Before a release with a user-visible change, bump the `"version"` field in the root `package.json` (the single source of truth) and run `npm run version:sync` to propagate it into `wrangler.toml`'s `APP_VERSION`, the web app's version constant, and the other `package.json` files (see CLAUDE.md's version-bump rule). `npm run version:check` will fail the deploy early if any of them have drifted.
 
 ## 6. Deploy the web app (Cloudflare Pages)
 

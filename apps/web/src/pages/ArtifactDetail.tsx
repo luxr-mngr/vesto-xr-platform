@@ -84,7 +84,7 @@ export function ArtifactDetail() {
 
       <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2">
-          <div className="aspect-square overflow-hidden rounded-xl border border-border bg-black/5 dark:border-border-dark dark:bg-white/5">
+          <div className="aspect-square overflow-hidden rounded-xl border border-border bg-bg-dark dark:border-border-dark">
             {artifact.glbR2Key ? (
               <model-viewer
                 src={`/api/artifacts/${artifact.id}/glb`}
@@ -94,7 +94,7 @@ export function ArtifactDetail() {
                 style={{ width: "100%", height: "100%" }}
               />
             ) : (
-              <div className="flex h-full items-center justify-center text-center text-text-secondary dark:text-text-secondary-dark">
+              <div className="flex h-full items-center justify-center text-center text-text-secondary-dark">
                 {t("artifactDetail.noPreview")}
               </div>
             )}

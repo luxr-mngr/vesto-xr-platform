@@ -59,7 +59,7 @@ export function ArtifactGrid({
         >
           <Link
             to={`/artifacts/${artifact.id}`}
-            className="mb-3 flex aspect-square items-center justify-center overflow-hidden rounded-lg bg-black/5 text-text-secondary hover:opacity-80 dark:bg-white/5 dark:text-text-secondary-dark"
+            className="mb-3 flex aspect-square items-center justify-center overflow-hidden rounded-lg bg-bg-dark text-text-secondary-dark hover:opacity-80"
           >
             {artifact.thumbnailR2Key ? (
               <img

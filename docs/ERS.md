@@ -309,7 +309,18 @@ Base URL: `https://api.vestoxr.com/api/v1/`
 | `GET` | `/artifacts/:id` | Full metadata (fixed + custom fields) for one artifact. |
 | `GET` | `/artifacts/:id/download` | Returns `{ url, expires_at }` — a short-lived signed R2 GET URL for the `.glb` binary. Unreal plugin fetches this, then downloads the file directly from R2. |
 | `GET` | `/artifacts/:id/thumbnail` | **Implemented.** Same pattern, for the PNG preview. |
-| `GET` | `/organizations/:slug` | Public org profile (name only, no user data). |
+| `GET` | `/organizations/:slug` | Public org profile (name only, no user data). **Not yet implemented.** |
+
+**Second auth mode — per-user Store access (implemented):** for read-only viewer clients (e.g. a VR visualizer) where embedding one shared org API key in a distributed client isn't the right fit, any active user (any role/org) can instead authenticate as themselves and browse/download only the public **Store** — not their own organization's private library.
+
+| Method | Path | Description |
+|---|---|---|
+| `POST` | `/v1/session/login` | Body `{ email, password }`. Returns `{ token, expires_at, user }` — a 7-day bearer token, independent of both the web app's httpOnly session cookie and the org-scoped API key. Rate-limited like `/auth/login` (10/min/IP). |
+| `GET` | `/v1/store/artifacts` | `Authorization: Bearer <user token>`. Lists only `published` + `public` artifacts, from any organization. |
+| `GET` | `/v1/store/artifacts/:id` | Same auth/scope as above; `404` for anything not Store-visible (including the caller's own org's drafts). |
+| `GET` | `/v1/store/artifacts/:id/download` / `/thumbnail` | Same signed-URL pattern as the API-key flow — both flows share the one `/v1/download/:token` redemption route. |
+
+This is a narrower, separate surface from the org-API-key routes above (Store-only, no write access, can't reach a caller's own private/draft artifacts) — deliberately not implemented by teaching the web app's cookie-based `requireAuth` to also accept a header, so a token meant only for a read-only Store viewer can never be replayed against the admin app's write routes. See [UNREAL_INTEGRATION.md](UNREAL_INTEGRATION.md) for when to use this vs. the org API key.
 
 Internal (session-cookie authenticated) endpoints for the admin app mirror CRUD needs: `/auth/*`, `/users/*`, `/organizations/*`, `/artifacts/*` (POST/PATCH/DELETE + `/submit`, `/approve`, `/reject`), `/custom-fields/*`, `/api-keys/*`.
 

@@ -5,7 +5,7 @@ import { API_BASE, apiFetch, apiUploadFile } from "../lib/api.js";
 import { ArtifactGrid, type ArtifactActions } from "../components/ArtifactGrid.js";
 import { useAuth } from "../context/AuthContext.js";
 import { useI18n } from "../lib/i18n.js";
-import { MODEL_EXPOSURE } from "../lib/modelViewer.js";
+import { fixEmissiveOnlyMaterials, MODEL_EXPOSURE } from "../lib/modelViewer.js";
 
 /**
  * Renders a GLB off-screen in a throwaway <model-viewer> and captures a PNG
@@ -25,6 +25,7 @@ function captureThumbnail(file: File): Promise<Blob | null> {
       src: string;
       toBlob: (opts?: { idealAspect?: boolean }) => Promise<Blob>;
       dismissPoster: () => void;
+      model?: { materials: any[] };
     };
     viewer.setAttribute("reveal", "manual");
     viewer.setAttribute("loading", "eager");
@@ -51,7 +52,10 @@ function captureThumbnail(file: File): Promise<Blob | null> {
     viewer.addEventListener(
       "load",
       () => {
-        viewer.toBlob({ idealAspect: true }).then(finish).catch(() => finish(null));
+        fixEmissiveOnlyMaterials(viewer)
+          .then(() => viewer.toBlob({ idealAspect: true }))
+          .then(finish)
+          .catch(() => finish(null));
       },
       { once: true }
     );

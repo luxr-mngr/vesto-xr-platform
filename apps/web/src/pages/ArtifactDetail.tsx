@@ -5,7 +5,7 @@ import { can, type Artifact, type CustomFieldDefinition, type Organization, type
 import { API_BASE, apiFetch } from "../lib/api.js";
 import { useAuth } from "../context/AuthContext.js";
 import { useI18n } from "../lib/i18n.js";
-import { MODEL_EXPOSURE } from "../lib/modelViewer.js";
+import { fixEmissiveOnlyMaterials, MODEL_EXPOSURE } from "../lib/modelViewer.js";
 
 const STATUS_KEY: Record<Artifact["status"], "artifactGrid.statusDraft" | "artifactGrid.statusPendingReview" | "artifactGrid.statusPublished" | "artifactGrid.statusRejected"> = {
   draft: "artifactGrid.statusDraft",
@@ -122,6 +122,7 @@ export function ArtifactDetail() {
                 camera-controls
                 auto-rotate
                 exposure={MODEL_EXPOSURE}
+                onLoad={(e) => fixEmissiveOnlyMaterials(e.currentTarget as unknown as { model?: { materials: any[] } })}
                 style={{ width: "100%", height: "100%" }}
               />
             ) : artifact.glbR2Key ? (

@@ -31,6 +31,10 @@ Read [docs/ERS.md](docs/ERS.md) and [docs/adr/README.md](docs/adr/README.md) bef
 - **Body explains why, not what** — the diff already shows what changed; use the body for the motivating reason, especially for business-rule changes (link the ADR/ERS section if relevant).
 - Follow the repo-wide git safety rules already in your operating instructions (no `--amend` on published commits, no `--no-verify`, confirm before any destructive op) — this section only adds scope/title conventions on top of those.
 
+## Deploying
+
+- **A manual `wrangler pages deploy` build must set `VITE_API_BASE_URL` to the deployed Worker's origin, with no `/api` suffix** — e.g. `VITE_API_BASE_URL=https://vestoxr-api.vestoxr.workers.dev npm run build --workspace apps/web`. The Worker's routes are mounted at the root (`/auth/login`, `/artifacts`, …, no `/api` prefix); only the local Vite dev proxy adds and then strips an `/api` prefix (`apps/web/vite.config.ts`). Forgetting this env var silently builds a bundle that calls the relative path `/api/...` on the Pages domain itself, which has no such route and fails logins with a 405 — this has actually happened once (2026-07-03) and cost a redeploy cycle to diagnose. This only applies to manual CLI deploys; a dashboard git-connected Pages build would read `VITE_API_BASE_URL` from its configured build environment variable instead.
+
 ## Commands
 
 ```bash

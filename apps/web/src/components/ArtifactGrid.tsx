@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { can, type Artifact, type User } from "@vestoxr/shared";
-import { Check, Eye, EyeOff, Pencil, Send, Trash2, X } from "lucide-react";
+import { Check, Eye, EyeOff, ImagePlus, Pencil, Send, Trash2, X } from "lucide-react";
 import { API_BASE } from "../lib/api.js";
 import { useI18n } from "../lib/i18n.js";
 
@@ -25,6 +25,7 @@ export interface ArtifactActions {
   onToggleVisibility: (artifact: Artifact) => void;
   onEdit: (artifact: Artifact) => void;
   onDelete: (artifact: Artifact) => void;
+  onRegenerateThumbnail: (artifact: Artifact) => void;
 }
 
 /** `actor` + `actions` are optional so the read-only public Store can reuse this grid. */
@@ -94,6 +95,15 @@ export function ArtifactGrid({
                   className="rounded-md border border-border p-1.5 text-text-secondary hover:bg-black/5 dark:border-border-dark dark:text-text-secondary-dark dark:hover:bg-white/5"
                 >
                   <Pencil size={14} />
+                </button>
+              )}
+              {artifact.glbR2Key && !artifact.thumbnailR2Key && can(actor, "artifact.editMetadata", { artifact }) && (
+                <button
+                  onClick={() => actions.onRegenerateThumbnail(artifact)}
+                  title={t("artifactGrid.regenerateThumbnail")}
+                  className="rounded-md border border-border p-1.5 text-text-secondary hover:bg-black/5 dark:border-border-dark dark:text-text-secondary-dark dark:hover:bg-white/5"
+                >
+                  <ImagePlus size={14} />
                 </button>
               )}
               {artifact.status === "draft" && can(actor, "artifact.submitForReview", { artifact }) && (

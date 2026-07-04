@@ -1,27 +1,37 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { isVisibleInMyLibrary, MAX_GLB_SIZE_BYTES, type Artifact, type Organization, type User } from "@vestoxr/shared";
 import { Upload } from "lucide-react";
-import { apiFetch, apiUploadFile } from "../lib/api.js";
+import { API_BASE, apiFetch, apiUploadFile } from "../lib/api.js";
 import { ArtifactGrid, type ArtifactActions } from "../components/ArtifactGrid.js";
 import { useAuth } from "../context/AuthContext.js";
 import { useI18n } from "../lib/i18n.js";
 
 /**
- * Renders the just-picked GLB off-screen in a throwaway <model-viewer> and
- * captures a PNG snapshot once it's loaded (ERS §7) — avoids needing a
- * server-side 3D renderer for thumbnails. Resolves null on load failure/timeout
- * so a bad/slow model never blocks the artifact upload itself.
+ * Renders a GLB off-screen in a throwaway <model-viewer> and captures a PNG
+ * snapshot once it's loaded (ERS §7) — avoids needing a server-side 3D
+ * renderer for thumbnails. Resolves null on load failure/timeout so a bad/slow
+ * model never blocks the artifact upload itself.
+ *
+ * `reveal="manual"` + `loading="eager"` + `dismissPoster()` are required here:
+ * model-viewer's defaults use an IntersectionObserver to defer loading/
+ * rendering until the element is visible in the viewport, and this element is
+ * deliberately positioned off-screen — without overriding that, "load" never
+ * fires and every capture silently times out after 15s.
  */
 function captureThumbnail(file: File): Promise<Blob | null> {
   return new Promise((resolve) => {
     const viewer = document.createElement("model-viewer") as HTMLElement & {
       src: string;
       toBlob: (opts?: { idealAspect?: boolean }) => Promise<Blob>;
+      dismissPoster: () => void;
     };
+    viewer.setAttribute("reveal", "manual");
+    viewer.setAttribute("loading", "eager");
     viewer.style.cssText = "position:fixed;top:-9999px;left:-9999px;width:512px;height:512px;";
     const objectUrl = URL.createObjectURL(file);
     viewer.src = objectUrl;
     document.body.appendChild(viewer);
+    viewer.dismissPoster();
 
     let settled = false;
     const finish = (result: Blob | null) => {
@@ -134,6 +144,21 @@ export function MyLibrary() {
       if (!confirm(t("myLibrary.confirmDelete"))) return;
       await apiFetch(`/artifacts/${a.id}`, { method: "DELETE" });
       await load();
+    },
+    onRegenerateThumbnail: async (a) => {
+      // Backfill for artifacts uploaded before thumbnail capture worked, or
+      // whose capture failed silently — re-fetches the already-stored GLB
+      // (via our own authenticated request, since model-viewer's internal
+      // fetch wouldn't carry the session cookie cross-origin) and re-runs
+      // the same off-screen capture used at upload time.
+      const res = await fetch(`${API_BASE}/artifacts/${a.id}/glb`, { credentials: "include" });
+      if (!res.ok) return;
+      const file = new File([await res.blob()], "model.glb", { type: "model/gltf-binary" });
+      const thumbnail = await captureThumbnail(file);
+      if (thumbnail) {
+        await apiUploadFile(`/artifacts/${a.id}/thumbnail`, new File([thumbnail], "thumbnail.png", { type: "image/png" }));
+        await load();
+      }
     },
   };
 

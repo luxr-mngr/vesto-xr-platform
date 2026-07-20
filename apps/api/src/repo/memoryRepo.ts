@@ -107,7 +107,7 @@ export class MemoryRepo implements Repo {
     return count;
   }
 
-  async createApiKey(key: ApiKey & { keyHash: string; label: string }) {
+  async createApiKey(key: ApiKey & { keyHash: string; label: string; createdBy: string }) {
     this.apiKeys.set(key.id, key);
   }
   async getApiKeyByHash(hash: string) {

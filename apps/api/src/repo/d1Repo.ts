@@ -290,13 +290,13 @@ export class D1Repo implements Repo {
     return row?.count ?? 0;
   }
 
-  async createApiKey(key: ApiKey & { keyHash: string; label: string }) {
+  async createApiKey(key: ApiKey & { keyHash: string; label: string; createdBy: string }) {
     await this.db
       .prepare(
         `INSERT INTO api_keys (id, organization_id, key_hash, label, created_by)
          VALUES (?, ?, ?, ?, ?)`
       )
-      .bind(key.id, key.organizationId, key.keyHash, key.label, key.id)
+      .bind(key.id, key.organizationId, key.keyHash, key.label, key.createdBy)
       .run();
   }
 

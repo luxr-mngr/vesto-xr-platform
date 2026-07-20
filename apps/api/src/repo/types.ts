@@ -43,7 +43,7 @@ export interface Repo {
   /** Number of artifacts currently holding a value for `fieldKey` — used to block deleting an in-use field definition. */
   countArtifactCustomFieldUsage(fieldKey: string): Promise<number>;
 
-  createApiKey(key: ApiKey & { keyHash: string; label: string }): Promise<void>;
+  createApiKey(key: ApiKey & { keyHash: string; label: string; createdBy: string }): Promise<void>;
   getApiKeyByHash(hash: string): Promise<ApiKey | null>;
   listApiKeysForOrganization(organizationId: string): Promise<ApiKey[]>;
   revokeApiKey(id: string): Promise<void>;

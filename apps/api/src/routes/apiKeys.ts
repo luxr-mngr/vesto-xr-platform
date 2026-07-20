@@ -30,6 +30,7 @@ export function registerApiKeyRoutes(app: Hono<HonoEnv>) {
       revokedAt: null,
       keyHash: await hashApiKey(rawKey),
       label: body.label ?? "API key",
+      createdBy: actor.id,
     });
 
     return c.json({ id, key: rawKey }, 201);

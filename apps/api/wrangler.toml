@@ -6,7 +6,7 @@ compatibility_date = "2026-07-01"
 # headers / health endpoint. Generated from the root package.json's "version"
 # field — do not edit by hand; bump it there and run `npm run version:sync`.
 [vars]
-APP_VERSION = "0.5.0"
+APP_VERSION = "0.5.1"
 ALLOWED_ORIGINS = "https://vestoxr-web.pages.dev,https://platform.luxrcore.com"
 
 [[d1_databases]]

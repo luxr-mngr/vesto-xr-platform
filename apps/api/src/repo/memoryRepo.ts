@@ -79,13 +79,14 @@ export class MemoryRepo implements Repo {
   async listCustomFieldDefinitions() {
     return [...this.customFieldDefinitions.values()];
   }
-  async updateCustomFieldDefinition(id: string, patch: Partial<Pick<CustomFieldDefinition, "label" | "fieldType">>) {
+  async updateCustomFieldDefinition(id: string, patch: Partial<Pick<CustomFieldDefinition, "label" | "fieldType" | "isPublicShowcase">>) {
     const existing = [...this.customFieldDefinitions.values()].find((d) => d.id === id);
     if (!existing) return;
     this.customFieldDefinitions.set(existing.key, {
       ...existing,
       label: patch.label ?? existing.label,
       fieldType: patch.fieldType ?? existing.fieldType,
+      isPublicShowcase: patch.isPublicShowcase ?? existing.isPublicShowcase,
     });
   }
   async deleteCustomFieldDefinition(id: string) {

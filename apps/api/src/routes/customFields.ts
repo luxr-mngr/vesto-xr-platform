@@ -14,7 +14,7 @@ export function registerCustomFieldRoutes(app: Hono<HonoEnv>) {
     const actor = c.get("user")!;
     if (!can(actor, "customField.create")) return c.json({ error: "Forbidden." }, 403);
 
-    const body = await c.req.json<{ key?: string; label?: string; fieldType?: string }>();
+    const body = await c.req.json<{ key?: string; label?: string; fieldType?: string; isPublicShowcase?: boolean }>();
     if (!body.key || !body.label || !body.fieldType) {
       return c.json({ error: "key, label, and fieldType are required." }, 400);
     }
@@ -27,6 +27,7 @@ export function registerCustomFieldRoutes(app: Hono<HonoEnv>) {
       key: body.key,
       label: body.label,
       fieldType: body.fieldType as CustomFieldDefinition["fieldType"],
+      isPublicShowcase: body.isPublicShowcase ?? false,
     };
     await c.get("repo").createCustomFieldDefinition(def, actor.id);
     return c.json(def, 201);
@@ -43,14 +44,15 @@ export function registerCustomFieldRoutes(app: Hono<HonoEnv>) {
     const existing = await repo.getCustomFieldDefinitionById(c.req.param("id"));
     if (!existing) return c.json({ error: "Not found." }, 404);
 
-    const body = await c.req.json<{ label?: string; fieldType?: string }>();
+    const body = await c.req.json<{ label?: string; fieldType?: string; isPublicShowcase?: boolean }>();
     if (body.fieldType !== undefined && !["text", "number", "date", "boolean"].includes(body.fieldType)) {
       return c.json({ error: "fieldType must be text, number, date, or boolean." }, 400);
     }
 
-    const patch: Partial<Pick<CustomFieldDefinition, "label" | "fieldType">> = {};
+    const patch: Partial<Pick<CustomFieldDefinition, "label" | "fieldType" | "isPublicShowcase">> = {};
     if (body.label !== undefined) patch.label = body.label;
     if (body.fieldType !== undefined) patch.fieldType = body.fieldType as CustomFieldDefinition["fieldType"];
+    if (body.isPublicShowcase !== undefined) patch.isPublicShowcase = body.isPublicShowcase;
 
     await repo.updateCustomFieldDefinition(existing.id, patch);
     return c.json({ ...existing, ...patch });

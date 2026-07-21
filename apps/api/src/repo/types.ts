@@ -34,7 +34,7 @@ export interface Repo {
   getCustomFieldDefinitionById(id: string): Promise<CustomFieldDefinition | null>;
   listCustomFieldDefinitions(): Promise<CustomFieldDefinition[]>;
   /** Renames the label and/or retypes the field (ERS §12 "add/rename/retire") — the `key` itself is immutable once created. */
-  updateCustomFieldDefinition(id: string, patch: Partial<Pick<CustomFieldDefinition, "label" | "fieldType">>): Promise<void>;
+  updateCustomFieldDefinition(id: string, patch: Partial<Pick<CustomFieldDefinition, "label" | "fieldType" | "isPublicShowcase">>): Promise<void>;
   deleteCustomFieldDefinition(id: string): Promise<void>;
 
   getArtifactCustomFieldValues(artifactId: string): Promise<Record<string, string>>;

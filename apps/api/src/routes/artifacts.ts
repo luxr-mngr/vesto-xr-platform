@@ -23,7 +23,7 @@ export function registerArtifactRoutes(app: Hono<HonoEnv>) {
     const actor = c.get("user")!;
     if (!can(actor, "artifact.upload")) return c.json({ error: "Forbidden." }, 403);
 
-    const body = await c.req.json<{ title?: string; organizationId?: string }>();
+    const body = await c.req.json<{ title?: string; description?: string; organizationId?: string }>();
     if (!body.title) return c.json({ error: "title is required." }, 400);
 
     const organizationId = actor.role === "admin" ? body.organizationId : actor.organizationId;
@@ -34,6 +34,7 @@ export function registerArtifactRoutes(app: Hono<HonoEnv>) {
       organizationId,
       createdBy: actor.id,
       title: body.title,
+      description: body.description?.trim() || null,
       status: "draft",
       visibility: "private",
       glbR2Key: null,
@@ -50,8 +51,11 @@ export function registerArtifactRoutes(app: Hono<HonoEnv>) {
     if (!artifact) return c.json({ error: "Not found." }, 404);
     if (!can(actor, "artifact.editMetadata", { artifact })) return c.json({ error: "Forbidden." }, 403);
 
-    const body = await c.req.json<{ title?: string }>();
-    await repo.updateArtifact(artifact.id, { title: body.title ?? artifact.title });
+    const body = await c.req.json<{ title?: string; description?: string | null }>();
+    await repo.updateArtifact(artifact.id, {
+      title: body.title ?? artifact.title,
+      description: body.description !== undefined ? body.description?.trim() || null : artifact.description,
+    });
     return c.json({ ok: true });
   });
 

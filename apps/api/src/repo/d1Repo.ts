@@ -15,10 +15,29 @@ interface ArtifactRow {
   organization_id: string;
   created_by: string;
   title: string;
+  description: string | null;
   status: Artifact["status"];
   visibility: Artifact["visibility"];
   glb_r2_key: string | null;
   thumbnail_r2_key: string | null;
+}
+
+interface CustomFieldDefinitionRow {
+  id: string;
+  key: string;
+  label: string;
+  fieldType: CustomFieldDefinition["fieldType"];
+  isPublicShowcase: number;
+}
+
+function customFieldDefinitionFromRow(row: CustomFieldDefinitionRow): CustomFieldDefinition {
+  return {
+    id: row.id,
+    key: row.key,
+    label: row.label,
+    fieldType: row.fieldType,
+    isPublicShowcase: !!row.isPublicShowcase,
+  };
 }
 
 function userFromRow(row: UserRow): StoredUser {
@@ -38,6 +57,7 @@ function artifactFromRow(row: ArtifactRow): Artifact {
     organizationId: row.organization_id,
     createdBy: row.created_by,
     title: row.title,
+    description: row.description,
     status: row.status,
     visibility: row.visibility,
     glbR2Key: row.glb_r2_key,
@@ -150,14 +170,15 @@ export class D1Repo implements Repo {
   async createArtifact(artifact: Artifact) {
     await this.db
       .prepare(
-        `INSERT INTO artifacts (id, organization_id, created_by, title, status, visibility)
-         VALUES (?, ?, ?, ?, ?, ?)`
+        `INSERT INTO artifacts (id, organization_id, created_by, title, description, status, visibility)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`
       )
       .bind(
         artifact.id,
         artifact.organizationId,
         artifact.createdBy,
         artifact.title,
+        artifact.description,
         artifact.status,
         artifact.visibility
       )
@@ -167,7 +188,7 @@ export class D1Repo implements Repo {
   async getArtifactById(id: string) {
     const row = await this.db
       .prepare(
-        "SELECT id, organization_id, created_by, title, status, visibility, glb_r2_key, thumbnail_r2_key FROM artifacts WHERE id = ?"
+        "SELECT id, organization_id, created_by, title, description, status, visibility, glb_r2_key, thumbnail_r2_key FROM artifacts WHERE id = ?"
       )
       .bind(id)
       .first<ArtifactRow>();
@@ -176,7 +197,7 @@ export class D1Repo implements Repo {
 
   async listArtifacts() {
     const { results } = await this.db
-      .prepare("SELECT id, organization_id, created_by, title, status, visibility, glb_r2_key, thumbnail_r2_key FROM artifacts")
+      .prepare("SELECT id, organization_id, created_by, title, description, status, visibility, glb_r2_key, thumbnail_r2_key FROM artifacts")
       .all<ArtifactRow>();
     return results.map(artifactFromRow);
   }
@@ -195,6 +216,10 @@ export class D1Repo implements Repo {
     if (patch.title !== undefined) {
       fields.push("title = ?");
       values.push(patch.title);
+    }
+    if (patch.description !== undefined) {
+      fields.push("description = ?");
+      values.push(patch.description);
     }
     if (patch.glbR2Key !== undefined) {
       fields.push("glb_r2_key = ?");
@@ -217,28 +242,31 @@ export class D1Repo implements Repo {
   async createCustomFieldDefinition(def: CustomFieldDefinition, createdBy: string) {
     await this.db
       .prepare(
-        `INSERT INTO custom_field_definitions (id, key, label, field_type, created_by)
-         VALUES (?, ?, ?, ?, ?)`
+        `INSERT INTO custom_field_definitions (id, key, label, field_type, is_public_showcase, created_by)
+         VALUES (?, ?, ?, ?, ?, ?)`
       )
-      .bind(def.id, def.key, def.label, def.fieldType, createdBy)
+      .bind(def.id, def.key, def.label, def.fieldType, def.isPublicShowcase ? 1 : 0, createdBy)
       .run();
   }
 
   async getCustomFieldDefinitionById(id: string) {
-    return this.db
-      .prepare("SELECT id, key, label, field_type as fieldType FROM custom_field_definitions WHERE id = ?")
+    const row = await this.db
+      .prepare(
+        "SELECT id, key, label, field_type as fieldType, is_public_showcase as isPublicShowcase FROM custom_field_definitions WHERE id = ?"
+      )
       .bind(id)
-      .first<CustomFieldDefinition>();
+      .first<CustomFieldDefinitionRow>();
+    return row ? customFieldDefinitionFromRow(row) : null;
   }
 
   async listCustomFieldDefinitions() {
     const { results } = await this.db
-      .prepare("SELECT id, key, label, field_type as fieldType FROM custom_field_definitions")
-      .all<CustomFieldDefinition>();
-    return results;
+      .prepare("SELECT id, key, label, field_type as fieldType, is_public_showcase as isPublicShowcase FROM custom_field_definitions")
+      .all<CustomFieldDefinitionRow>();
+    return results.map(customFieldDefinitionFromRow);
   }
 
-  async updateCustomFieldDefinition(id: string, patch: Partial<Pick<CustomFieldDefinition, "label" | "fieldType">>) {
+  async updateCustomFieldDefinition(id: string, patch: Partial<Pick<CustomFieldDefinition, "label" | "fieldType" | "isPublicShowcase">>) {
     const fields: string[] = [];
     const values: unknown[] = [];
     if (patch.label !== undefined) {
@@ -248,6 +276,10 @@ export class D1Repo implements Repo {
     if (patch.fieldType !== undefined) {
       fields.push("field_type = ?");
       values.push(patch.fieldType);
+    }
+    if (patch.isPublicShowcase !== undefined) {
+      fields.push("is_public_showcase = ?");
+      values.push(patch.isPublicShowcase ? 1 : 0);
     }
     if (fields.length === 0) return;
     values.push(id);

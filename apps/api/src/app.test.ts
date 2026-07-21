@@ -575,6 +575,82 @@ describe("apps/api HTTP routes", () => {
     expect(new Uint8Array(await bytesRes.arrayBuffer())).toEqual(new Uint8Array([5, 5, 5]));
   });
 
+  it("exposes the public showcase with no auth at all, only published+public artifacts, and only fields flagged isPublicShowcase", async () => {
+    const admin = await registerAndActivate("showcase-admin@example.com", "admin", null);
+    const curator = await registerAndActivate("showcase-curator@example.com", "curator", "org-a");
+
+    await app.request(
+      "/custom-fields",
+      {
+        method: "POST",
+        headers: { "content-type": "application/json", cookie: admin.cookie },
+        body: JSON.stringify({ key: "era", label: "Era", fieldType: "text", isPublicShowcase: true }),
+      },
+      env
+    );
+    await app.request(
+      "/custom-fields",
+      {
+        method: "POST",
+        headers: { "content-type": "application/json", cookie: admin.cookie },
+        body: JSON.stringify({ key: "internal_notes", label: "Internal Notes", fieldType: "text" }),
+      },
+      env
+    );
+
+    const draftRes = await app.request(
+      "/artifacts",
+      { method: "POST", headers: { "content-type": "application/json", cookie: curator.cookie }, body: JSON.stringify({ title: "Still a draft" }) },
+      env
+    );
+    const draft = await json<{ id: string }>(draftRes);
+
+    const publishedRes = await app.request(
+      "/artifacts",
+      {
+        method: "POST",
+        headers: { "content-type": "application/json", cookie: curator.cookie },
+        body: JSON.stringify({ title: "Showcase piece", description: "A brief blurb." }),
+      },
+      env
+    );
+    const published = await json<{ id: string }>(publishedRes);
+    await app.request(`/artifacts/${published.id}/glb`, { method: "PUT", headers: { cookie: curator.cookie }, body: new Uint8Array([7, 7, 7]) }, env);
+    await app.request(`/artifacts/${published.id}/submit`, { method: "POST", headers: { cookie: curator.cookie } }, env);
+    await app.request(`/artifacts/${published.id}/approve`, { method: "POST", headers: { cookie: curator.cookie } }, env);
+    await app.request(
+      `/artifacts/${published.id}/visibility`,
+      { method: "POST", headers: { "content-type": "application/json", cookie: curator.cookie }, body: JSON.stringify({ visibility: "public" }) },
+      env
+    );
+    await app.request(
+      `/artifacts/${published.id}/custom-fields`,
+      {
+        method: "PUT",
+        headers: { "content-type": "application/json", cookie: curator.cookie },
+        body: JSON.stringify({ era: "Bronze Age", internal_notes: "Handle with care" }),
+      },
+      env
+    );
+
+    // No cookie, no bearer token, no API key — a completely anonymous request.
+    const listRes = await app.request("/public/showcase/artifacts", {}, env);
+    expect(listRes.status).toBe(200);
+    const list = await json<Array<{ id: string; title: string; description: string | null; fields: Array<{ key: string; value: string }> }>>(listRes);
+
+    expect(list.some((a) => a.id === draft.id)).toBe(false);
+    const entry = list.find((a) => a.id === published.id)!;
+    expect(entry.description).toBe("A brief blurb.");
+    expect(entry.fields).toEqual([{ key: "era", label: "Era", value: "Bronze Age" }]);
+
+    const glbRes = await app.request(`/public/showcase/artifacts/${published.id}/glb`, {}, env);
+    expect(glbRes.status).toBe(200);
+    expect(new Uint8Array(await glbRes.arrayBuffer())).toEqual(new Uint8Array([7, 7, 7]));
+
+    const draftGlbRes = await app.request(`/public/showcase/artifacts/${draft.id}/glb`, {}, env);
+    expect(draftGlbRes.status).toBe(404);
+  });
+
   it("validates and persists custom-field values, rejecting unknown keys and cross-org edits", async () => {
     const admin = await registerAndActivate("cf-admin@example.com", "admin", null);
     const curator = await registerAndActivate("cf-curator@example.com", "curator", "org-a");

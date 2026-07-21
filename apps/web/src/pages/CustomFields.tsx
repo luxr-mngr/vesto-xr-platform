@@ -13,11 +13,13 @@ export function CustomFields() {
   const [newKey, setNewKey] = useState("");
   const [newLabel, setNewLabel] = useState("");
   const [newFieldType, setNewFieldType] = useState<CustomFieldDefinition["fieldType"]>("text");
+  const [newIsPublicShowcase, setNewIsPublicShowcase] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editLabel, setEditLabel] = useState("");
   const [editFieldType, setEditFieldType] = useState<CustomFieldDefinition["fieldType"]>("text");
+  const [editIsPublicShowcase, setEditIsPublicShowcase] = useState(false);
   const [rowError, setRowError] = useState<string | null>(null);
 
   async function load() {
@@ -42,11 +44,12 @@ export function CustomFields() {
     try {
       await apiFetch("/custom-fields", {
         method: "POST",
-        body: JSON.stringify({ key: newKey, label: newLabel, fieldType: newFieldType }),
+        body: JSON.stringify({ key: newKey, label: newLabel, fieldType: newFieldType, isPublicShowcase: newIsPublicShowcase }),
       });
       setNewKey("");
       setNewLabel("");
       setNewFieldType("text");
+      setNewIsPublicShowcase(false);
       setShowCreate(false);
       await load();
     } catch (err) {
@@ -61,6 +64,7 @@ export function CustomFields() {
     setEditingId(field.id);
     setEditLabel(field.label);
     setEditFieldType(field.fieldType);
+    setEditIsPublicShowcase(field.isPublicShowcase);
   }
 
   async function saveEdit(id: string) {
@@ -68,7 +72,7 @@ export function CustomFields() {
     try {
       await apiFetch(`/custom-fields/${id}`, {
         method: "PATCH",
-        body: JSON.stringify({ label: editLabel, fieldType: editFieldType }),
+        body: JSON.stringify({ label: editLabel, fieldType: editFieldType, isPublicShowcase: editIsPublicShowcase }),
       });
       setEditingId(null);
       await load();
@@ -143,6 +147,16 @@ export function CustomFields() {
               ))}
             </select>
           </div>
+          <div>
+            <label className="mb-1 flex items-center gap-2 text-sm font-medium">
+              <input
+                type="checkbox"
+                checked={newIsPublicShowcase}
+                onChange={(e) => setNewIsPublicShowcase(e.target.checked)}
+              />
+              {t("customFields.publicShowcase")}
+            </label>
+          </div>
           <button
             type="submit"
             disabled={creating}
@@ -172,6 +186,7 @@ export function CustomFields() {
               <th className="px-4 py-3 font-medium">{t("customFields.key")}</th>
               <th className="px-4 py-3 font-medium">{t("customFields.label")}</th>
               <th className="px-4 py-3 font-medium">{t("customFields.fieldType")}</th>
+              <th className="px-4 py-3 font-medium">{t("customFields.publicShowcase")}</th>
               <th className="px-4 py-3 font-medium">{t("customFields.actions")}</th>
             </tr>
           </thead>
@@ -201,6 +216,13 @@ export function CustomFields() {
                     </select>
                   </td>
                   <td className="px-4 py-3">
+                    <input
+                      type="checkbox"
+                      checked={editIsPublicShowcase}
+                      onChange={(e) => setEditIsPublicShowcase(e.target.checked)}
+                    />
+                  </td>
+                  <td className="px-4 py-3">
                     <div className="flex gap-2">
                       <button
                         onClick={() => saveEdit(f.id)}
@@ -224,6 +246,7 @@ export function CustomFields() {
                   <td className="px-4 py-3">{f.key}</td>
                   <td className="px-4 py-3">{f.label}</td>
                   <td className="px-4 py-3">{typeLabel[f.fieldType]}</td>
+                  <td className="px-4 py-3">{f.isPublicShowcase ? <Check size={14} className="text-accent" /> : "—"}</td>
                   <td className="px-4 py-3">
                     <div className="flex gap-2">
                       <button
@@ -247,7 +270,7 @@ export function CustomFields() {
             )}
             {fields && fields.length === 0 && (
               <tr>
-                <td colSpan={4} className="px-4 py-6 text-center text-text-secondary dark:text-text-secondary-dark">
+                <td colSpan={5} className="px-4 py-6 text-center text-text-secondary dark:text-text-secondary-dark">
                   {t("customFields.empty")}
                 </td>
               </tr>

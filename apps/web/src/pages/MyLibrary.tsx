@@ -70,6 +70,7 @@ export function MyLibrary() {
   const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [showUpload, setShowUpload] = useState(false);
   const [newTitle, setNewTitle] = useState("");
+  const [newDescription, setNewDescription] = useState("");
   const [newOrgId, setNewOrgId] = useState("");
   const [newFile, setNewFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -101,7 +102,11 @@ export function MyLibrary() {
     try {
       const artifact = await apiFetch<Artifact>("/artifacts", {
         method: "POST",
-        body: JSON.stringify({ title: newTitle.trim(), organizationId: newOrgId || undefined }),
+        body: JSON.stringify({
+          title: newTitle.trim(),
+          description: newDescription.trim() || undefined,
+          organizationId: newOrgId || undefined,
+        }),
       });
       if (newFile) {
         await apiUploadFile(`/artifacts/${artifact.id}/glb`, newFile);
@@ -111,6 +116,7 @@ export function MyLibrary() {
         }
       }
       setNewTitle("");
+      setNewDescription("");
       setNewOrgId("");
       setNewFile(null);
       setShowUpload(false);
@@ -217,6 +223,15 @@ export function MyLibrary() {
               </select>
             </div>
           )}
+          <div>
+            <label className="mb-1 block text-sm font-medium">{t("myLibrary.uploadDescription")}</label>
+            <textarea
+              value={newDescription}
+              onChange={(e) => setNewDescription(e.target.value)}
+              rows={2}
+              className="w-56 rounded-md border border-border bg-transparent px-3 py-2 text-sm outline-none focus:border-accent dark:border-border-dark"
+            />
+          </div>
           <div>
             <label className="mb-1 block text-sm font-medium">{t("myLibrary.uploadFile")}</label>
             <input

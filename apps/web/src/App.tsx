@@ -3,6 +3,7 @@ import { AuthProvider } from "./context/AuthContext.js";
 import { ProtectedRoute } from "./components/ProtectedRoute.js";
 import { Layout } from "./components/Layout.js";
 import { Login } from "./pages/Login.js";
+import { Showcase } from "./pages/Showcase.js";
 import { Dashboard } from "./pages/Dashboard.js";
 import { Store } from "./pages/Store.js";
 import { MyLibrary } from "./pages/MyLibrary.js";
@@ -17,6 +18,7 @@ export default function App() {
     <AuthProvider>
       <Routes>
         <Route path="/login" element={<Login />} />
+        <Route path="/showcase" element={<Showcase />} />
         <Route
           element={
             <ProtectedRoute>

@@ -25,11 +25,17 @@ export function ArtifactDetail() {
   const [savingFields, setSavingFields] = useState(false);
   const [fieldsMessage, setFieldsMessage] = useState<string | null>(null);
   const [modelObjectUrl, setModelObjectUrl] = useState<string | null>(null);
+  const [description, setDescription] = useState("");
+  const [savingDescription, setSavingDescription] = useState(false);
+  const [descriptionMessage, setDescriptionMessage] = useState<string | null>(null);
 
   useEffect(() => {
     if (!id) return;
     apiFetch<Artifact>(`/artifacts/${id}`)
-      .then(setArtifact)
+      .then((a) => {
+        setArtifact(a);
+        setDescription(a.description ?? "");
+      })
       .catch(() => setArtifact(null));
   }, [id]);
 
@@ -76,6 +82,20 @@ export function ArtifactDetail() {
   const actor: User | null = user ? { ...user, status: "active" } : null;
   const canEdit = !!(artifact && actor && can(actor, "artifact.editMetadata", { artifact }));
 
+  async function saveDescription() {
+    if (!artifact) return;
+    setSavingDescription(true);
+    setDescriptionMessage(null);
+    try {
+      await apiFetch(`/artifacts/${artifact.id}`, { method: "PATCH", body: JSON.stringify({ description }) });
+      setDescriptionMessage(t("artifactDetail.customFieldsSaved"));
+    } catch {
+      setDescriptionMessage(t("artifactDetail.customFieldsError"));
+    } finally {
+      setSavingDescription(false);
+    }
+  }
+
   async function saveCustomFields() {
     if (!artifact) return;
     setSavingFields(true);
@@ -112,6 +132,30 @@ export function ArtifactDetail() {
       </Link>
 
       <h1 className="mt-4 text-2xl font-bold">{artifact.title}</h1>
+
+      <div className="mt-3">
+        {canEdit ? (
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-start">
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              rows={2}
+              placeholder={t("artifactDetail.descriptionPlaceholder")}
+              className="w-full max-w-xl rounded-md border border-border bg-transparent px-3 py-2 text-sm outline-none focus:border-accent dark:border-border-dark"
+            />
+            <button
+              onClick={saveDescription}
+              disabled={savingDescription}
+              className="rounded-md border border-border px-3 py-2 text-xs font-semibold text-text-secondary hover:bg-black/5 disabled:opacity-50 dark:border-border-dark dark:text-text-secondary-dark dark:hover:bg-white/5"
+            >
+              {t("artifactDetail.customFieldsSave")}
+            </button>
+          </div>
+        ) : (
+          artifact.description && <p className="max-w-xl text-text-secondary dark:text-text-secondary-dark">{artifact.description}</p>
+        )}
+        {descriptionMessage && <span className="mt-1 block text-xs text-text-secondary dark:text-text-secondary-dark">{descriptionMessage}</span>}
+      </div>
 
       <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2">

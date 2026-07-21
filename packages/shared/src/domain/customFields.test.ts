@@ -7,24 +7,28 @@ const textField: CustomFieldDefinition = {
   key: "dynasty",
   label: "Dynasty",
   fieldType: "text",
+  isPublicShowcase: false,
 };
 const numberField: CustomFieldDefinition = {
   id: "2",
   key: "sherd_count",
   label: "Sherd Count",
   fieldType: "number",
+  isPublicShowcase: false,
 };
 const dateField: CustomFieldDefinition = {
   id: "3",
   key: "acquisition_date",
   label: "Acquisition Date",
   fieldType: "date",
+  isPublicShowcase: false,
 };
 const boolField: CustomFieldDefinition = {
   id: "4",
   key: "on_loan",
   label: "On Loan",
   fieldType: "boolean",
+  isPublicShowcase: false,
 };
 
 describe("customFields.validateCustomFieldValue", () => {

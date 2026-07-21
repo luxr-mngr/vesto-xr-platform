@@ -27,6 +27,8 @@ export interface Artifact {
   organizationId: string;
   createdBy: string;
   title: string;
+  /** Short free-text description shown on the artifact detail view and the public showcase (ERS §11.4). */
+  description: string | null;
   status: ArtifactStatus;
   visibility: ArtifactVisibility;
   /** R2 object key for the GLB binary; null until the upload step completes (ERS §10). */
@@ -45,6 +47,8 @@ export interface CustomFieldDefinition {
   key: string;
   label: string;
   fieldType: CustomFieldType;
+  /** Whether this field's value may be shown on the unauthenticated public showcase for a public artifact (ERS §11.4). Defaults false — showcase exposure is opt-in per field. */
+  isPublicShowcase: boolean;
 }
 
 export interface ApiKey {

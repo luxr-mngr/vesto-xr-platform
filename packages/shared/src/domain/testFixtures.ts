@@ -20,6 +20,7 @@ export function makeArtifact(overrides: Partial<Artifact> = {}): Artifact {
     organizationId: ORG_A,
     createdBy: "user-1",
     title: "Ceramic Vessel",
+    description: null,
     status: "draft",
     visibility: "private",
     glbR2Key: null,

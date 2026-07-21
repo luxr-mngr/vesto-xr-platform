@@ -130,6 +130,7 @@ artifacts
  ├─ organization_id (fk)
  ├─ created_by (fk → users.id)
  ├─ title
+ ├─ description          -- short free text, shown on Artifact Detail and the public showcase (§11.4)
  ├─ glb_r2_key           -- storage path in R2
  ├─ thumbnail_r2_key     -- generated preview image (nullable)
  ├─ file_size_bytes
@@ -168,6 +169,7 @@ custom_field_definitions     -- admin-managed catalog of extra fields
  ├─ key (unique)
  ├─ label
  ├─ field_type              -- 'text' | 'number' | 'date' | 'boolean'
+ ├─ is_public_showcase      -- opt-in: may this field's value appear on the unauthenticated public showcase (§11.4)?
  ├─ created_by (fk → users.id)
  ├─ created_at
 
@@ -322,6 +324,19 @@ Base URL: `https://api.vestoxr.com/api/v1/`
 
 This is a narrower, separate surface from the org-API-key routes above (Store-only, no write access, can't reach a caller's own private/draft artifacts) — deliberately not implemented by teaching the web app's cookie-based `requireAuth` to also accept a header, so a token meant only for a read-only Store viewer can never be replayed against the admin app's write routes. See [UNREAL_INTEGRATION.md](UNREAL_INTEGRATION.md) for when to use this vs. the org API key.
 
+### 11.4 Public showcase (no auth at all — demo day)
+
+A third, even narrower read surface (ADR 0009), for a walk-up "presentation" web view of the catalog with **no login of any kind** — meant for a demo-day booth screen or a visitor's own phone.
+
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/public/showcase/artifacts` | No auth. Same `published` + `public` scope as the Store. Each entry is `{ id, title, description, hasGlb, hasThumbnail, fields }`, where `fields` is only the subset of the global custom-field catalog an admin has flagged `isPublicShowcase` — the rest of the catalog (e.g. internal condition/provenance notes) stays hidden even on an otherwise-public artifact. |
+| `GET` | `/public/showcase/artifacts/:id/thumbnail` / `/glb` | No auth. Streams the binary directly; `404` unless the artifact is Store-visible. |
+
+Rate-limited per source IP (300 req/min) rather than per credential, since there is no credential — generous enough for a kiosk auto-advancing through a whole catalog, bounded enough to deter scraping. This surface is intentionally never more permissive than the Store: it uses the exact same `isStorePublic` predicate, just without requiring the visitor to have an account at all.
+
+The frontend's `/showcase` route (§12) is the one built-in consumer, but the shape is generic enough for an embed on an external event page if needed later.
+
 Internal (session-cookie authenticated) endpoints for the admin app mirror CRUD needs: `/auth/*`, `/users/*`, `/organizations/*`, `/artifacts/*` (POST/PATCH/DELETE + `/submit`, `/approve`, `/reject`), `/custom-fields/*`, `/api-keys/*`.
 
 API is versioned (`/v1/`) from day one so the Unreal plugin's contract can evolve without breaking older shipped builds.
@@ -343,6 +358,7 @@ Matching the Simtryx reference for structure and tone (left sidebar nav, flat ca
 9. **Custom Fields** (Admin only) — simple table to add/rename/retire metadata field definitions.
 10. **API Keys** (Curator/Admin) — per-org key list, create (show-once), revoke.
 11. **Organizations** (Admin only) — create/rename organizations, see member counts.
+12. **Showcase** (`/showcase`, no login) — kiosk/presentation view for demo-day: one large auto-rotating 3D piece at a time (title, description, admin-flagged public custom fields), next/prev + play/pause controls, auto-advances through the full public catalog on a loop (§11.4).
 
 ### 12.1 Visual Design
 
@@ -418,6 +434,6 @@ Both dark and light modes are already proven brand variants (confirmed via the p
 ## 16. Open Questions
 1. ~~Exact LUXR CORE brand hex codes / logo assets~~ — resolved: palette and typography extracted from provided `luxrcore.com` dark/light screenshots, see §12.1. Exact hex values are close approximations from the screenshots; grab final design-token values from Figma/CSS if pixel-perfect matching is required later.
 2. Max GLB file size limit and expected total catalog size (affects R2 cost planning and whether a CDN cache layer is worth adding later).
-3. Should the public Store hide any fixed/custom metadata fields per-organization (e.g., sensitive provenance info), or is everything published always fully visible?
+3. Should the public Store hide any fixed/custom metadata fields per-organization (e.g., sensitive provenance info), or is everything published always fully visible? Partially addressed for the new unauthenticated public showcase only (§11.4): custom fields are opt-in globally via `isPublicShowcase`, but there is still no per-organization override — an org cannot show a field on the Store while hiding it from the showcase, or vice versa. Still open for the Store itself, which shows the full catalog to any authenticated viewer as before.
 4. Is a CSV bulk-import needed for artifacts (not just users) in Phase 1, given the reference screenshot's "Importar CSV" feature is currently scoped to users only?
 5. Any requirement for offline/cached access in Unreal (bundle GLBs at build time vs always fetch live at runtime)?

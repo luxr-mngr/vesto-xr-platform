@@ -12,5 +12,6 @@ Each ADR captures one significant, hard-to-reverse technical decision: the conte
 | [0006](0006-external-api-key-plus-signed-urls.md) | External API auth: per-org API key + short-lived signed R2 URLs | Accepted |
 | [0007](0007-monorepo-npm-workspaces.md) | Monorepo via npm workspaces (no separate package manager) | Accepted |
 | [0008](0008-domain-logic-as-pure-tested-modules.md) | Business rules live in pure, framework-free modules with unit tests | Accepted |
+| [0009](0009-unauthenticated-public-showcase.md) | Public showcase: a third, fully unauthenticated read surface | Accepted |
 
 To add a new one, copy the shape of an existing ADR (Context / Decision / Consequences / Alternatives considered) and append a row above.

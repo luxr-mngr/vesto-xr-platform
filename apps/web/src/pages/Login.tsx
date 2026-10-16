@@ -5,6 +5,7 @@ import { ApiError, apiFetch } from "../lib/api.js";
 import { useI18n } from "../lib/i18n.js";
 import { APP_VERSION } from "../lib/version.js";
 import luxrLogo from "../assets/luxr-logo.svg";
+import luxrLogoWhite from "../assets/luxr-logo-blanco.svg";
 
 export function Login() {
   const { login } = useAuth();
@@ -123,7 +124,8 @@ export function Login() {
 
         <div className="mt-6 flex items-center justify-center gap-2 text-text-secondary dark:text-text-secondary-dark">
           <span className="text-xs">{t("login.poweredBy")}</span>
-          <img src={luxrLogo} alt="LuXR" className="h-3.5 w-auto opacity-80" />
+          <img src={luxrLogo} alt="LuXR" className="h-5 w-auto dark:hidden" />
+          <img src={luxrLogoWhite} alt="LuXR" className="hidden h-5 w-auto dark:block" />
         </div>
         <p className="mt-1 text-center text-xs text-text-secondary dark:text-text-secondary-dark">v{APP_VERSION}</p>
       </div>

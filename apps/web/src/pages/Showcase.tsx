@@ -3,7 +3,7 @@ import { ChevronLeft, ChevronRight, Pause, Play } from "lucide-react";
 import { API_BASE } from "../lib/api.js";
 import { useI18n } from "../lib/i18n.js";
 import { fixEmissiveOnlyMaterialsInGlb, MODEL_EXPOSURE } from "../lib/modelViewer.js";
-import luxrLogo from "../assets/luxr-logo.svg";
+import luxrLogo from "../assets/luxr-logo-oscuro.svg";
 
 interface ShowcaseField {
   key: string;
@@ -83,7 +83,7 @@ export function Showcase() {
   return (
     <div className="flex min-h-screen flex-col bg-bg-dark text-white">
       <header className="flex items-center justify-between px-8 py-5">
-        <img src={luxrLogo} alt="LUXR" className="h-6 opacity-80" />
+        <img src={luxrLogo} alt="LuXR" className="h-6 w-auto" />
         <h1 className="text-lg font-semibold tracking-wide">{t("showcase.title")}</h1>
         <div className="w-6" />
       </header>

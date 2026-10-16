@@ -4,6 +4,7 @@ import { useAuth } from "../context/AuthContext.js";
 import { APP_VERSION } from "../lib/version.js";
 import { useI18n } from "../lib/i18n.js";
 import luxrLogo from "../assets/luxr-logo.svg";
+import luxrLogoWhite from "../assets/luxr-logo-blanco.svg";
 
 function navLinkClasses(isActive: boolean): string {
   return [
@@ -30,7 +31,8 @@ export function Layout() {
         <div className="flex items-center gap-1.5 px-5 py-6">
           <span className="text-lg font-bold tracking-wide">VestoXR</span>
           <span className="text-xs font-medium text-text-secondary dark:text-text-secondary-dark">by</span>
-          <img src={luxrLogo} alt="LUXR" className="h-3.5 w-auto opacity-80" />
+          <img src={luxrLogo} alt="LuXR" className="h-5 w-auto dark:hidden" />
+          <img src={luxrLogoWhite} alt="LuXR" className="hidden h-5 w-auto dark:block" />
         </div>
 
         {user && (
